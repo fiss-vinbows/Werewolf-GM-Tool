@@ -1,0 +1,234 @@
+人狼AI：TypeScriptコード例
+作成日：2026-09-22
+参照：人狼AI_仕様プラン.txt（版0.28）
+
+これは、実装するとどのようなコードになるかを見るための教材です。
+アプリ本体ではなく、下記の一部分だけを抜き出しています。
+未確定の仕様を、このサンプルによって確定するものではありません。
+
+【この例で示すこと】
+・GMの実配役と、AIが使える情報を分ける。
+・予言者AIが、自分の予言でグレーから発見した生存人狼へ投票する。
+・通常投票の中央順を決める（偶数なら中央の2通りから抽選）。
+・投票先の表示と「発表済み」の確定を分け、二重登録を防ぐ。
+
+【省略していること】
+画面、端末への保存、復旧、入力訂正、他役職の判断、決選投票、
+破綻判定、ローラー、PPなどは実装していません。
+自分の人狼結果がない場合と、該当者が複数いる場合も未実装です。
+それらを勝手なランダム投票で補わず、未対応として返します。
+「黒を得た時点でグレーだったか」は、別の履歴処理で判定済みとします。
+
+以下がTypeScriptのコードです。
+------------------------------------------------------------
+
+type PlayerId = string;
+type Role = "villager" | "wolf" | "madman" | "seer" | "medium" | "bodyguard";
+
+// GMだけが管理する記録。実配役を含む。
+type GmPlayer = {
+  id: PlayerId;
+  name: string;
+  alive: boolean;
+  actualRole: Role;
+};
+
+// AIへ渡す公開情報には、実配役を持たせない。
+type PublicPlayer = {
+  id: PlayerId;
+  name: string;
+  alive: boolean;
+};
+
+type SeerResult = {
+  targetId: PlayerId;
+  result: "wolf" | "not-wolf";
+  wasGrayWhenDiscovered: boolean;
+};
+
+// 自分の能力結果は、予言者本人にだけ渡してよい情報。
+type SeerKnowledge = {
+  selfId: PlayerId;
+  players: PublicPlayer[];
+  ownResults: SeerResult[];
+};
+
+function makeSeerKnowledge(
+  gmPlayers: GmPlayer[],
+  selfId: PlayerId,
+  resultsBySeer: ReadonlyMap<PlayerId, readonly SeerResult[]>,
+): SeerKnowledge {
+  const self = gmPlayers.find(player => player.id === selfId);
+  if (!self || self.actualRole !== "seer") {
+    throw new Error("予言者本人の情報で作成してください。");
+  }
+
+  return {
+    selfId,
+    // 必要な項目だけを新しいオブジェクトへコピーする。
+    // 型名を変えるだけでは、実配役はデータから消えない。
+    players: gmPlayers.map(player => ({
+      id: player.id,
+      name: player.name,
+      alive: player.alive,
+    })),
+    ownResults: (resultsBySeer.get(selfId) ?? []).map(result => ({ ...result })),
+  };
+}
+
+type Decision =
+  | { kind: "chosen"; targetId: PlayerId; reason: string }
+  | { kind: "not-implemented"; reason: string };
+
+function decideSeerVote(knowledge: SeerKnowledge): Decision {
+  const self = knowledge.players.find(player => player.id === knowledge.selfId);
+  if (!self?.alive) {
+    throw new Error("死亡者は投票できません。");
+  }
+
+  // 自分の能力で発見した人狼だけを使う。GMの実配役は参照できない。
+  const knownWolfIds = new Set(
+    knowledge.ownResults
+      .filter(result => result.result === "wolf" && result.wasGrayWhenDiscovered)
+      .map(result => result.targetId),
+  );
+
+  const candidates = knowledge.players.filter(player =>
+    player.alive &&
+    player.id !== knowledge.selfId &&
+    knownWolfIds.has(player.id),
+  );
+
+  if (candidates.length === 1) {
+    return {
+      kind: "chosen",
+      targetId: candidates[0]!.id,
+      reason: "グレーから自分の予言で発見した、生存中の人狼へ継続投票する。",
+    };
+  }
+
+  return {
+    kind: "not-implemented",
+    reason: candidates.length === 0
+      ? "この例では、自分の人狼結果がない局面の判断を省略しています。"
+      : "複数の人狼判定者がいる場合の優先順位は、仕様の相談が必要です。",
+  };
+}
+
+// 通常投票専用。戻り値は1番目から数えた順番。
+// 抽選関数を差し替えられるので、テストでは結果を固定できる。
+function chooseAiOrder(count: number, random: () => number = Math.random): number {
+  if (!Number.isInteger(count) || count < 1) {
+    throw new Error("投票参加人数は1以上の整数にしてください。");
+  }
+  if (count % 2 === 1) return (count + 1) / 2;
+  return count / 2 + (random() < 0.5 ? 0 : 1);
+}
+
+type Vote = {
+  voterId: PlayerId;
+  targetId: PlayerId;
+};
+
+type AiVote = {
+  voterId: PlayerId;
+  targetId: PlayerId;
+  reason: string;
+  status: "displayed" | "announced";
+};
+
+type NormalRound = {
+  id: string;
+  aiOrder: number;
+  votes: Vote[]; // 発表済みの票だけを集計に含める。
+  aiVote: AiVote | null;
+};
+
+function displayAiVote(round: NormalRound, knowledge: SeerKnowledge): NormalRound {
+  // 再表示で判断をやり直さない。訂正時の再判断は別処理として実装する。
+  if (round.aiVote) return round;
+  if (round.votes.length !== round.aiOrder - 1) {
+    throw new Error("まだAIの投票順ではないか、入力順に誤りがあります。");
+  }
+
+  const decision = decideSeerVote(knowledge);
+  if (decision.kind === "not-implemented") throw new Error(decision.reason);
+
+  return {
+    ...round,
+    aiVote: {
+      voterId: knowledge.selfId,
+      targetId: decision.targetId,
+      reason: decision.reason,
+      status: "displayed",
+    },
+  };
+}
+
+function markAiVoteAnnounced(round: NormalRound): NormalRound {
+  const aiVote = round.aiVote;
+  if (!aiVote) throw new Error("先にAIの投票先を表示してください。");
+  if (aiVote.status === "announced") return round; // 二重押下でも増やさない。
+  if (round.votes.some(vote => vote.voterId === aiVote.voterId)) {
+    throw new Error("AI票が既に登録されています。状態を確認してください。");
+  }
+
+  return {
+    ...round,
+    aiVote: { ...aiVote, status: "announced" },
+    votes: [...round.votes, {
+      voterId: aiVote.voterId,
+      targetId: aiVote.targetId,
+    }],
+  };
+}
+
+// ---------------- 使用例 ----------------
+// 13人中、AIを含む3人だけが生存している局面の抜粋。
+// 実際のアプリでは死亡者も含めた13人全員の記録を保持する。
+const gmPlayers: GmPlayer[] = [
+  { id: "ai", name: "AI", alive: true, actualRole: "seer" },
+  { id: "a", name: "Aさん", alive: true, actualRole: "wolf" },
+  { id: "b", name: "Bさん", alive: true, actualRole: "villager" },
+];
+
+const resultsBySeer = new Map<PlayerId, SeerResult[]>([
+  ["ai", [{ targetId: "a", result: "wolf", wasGrayWhenDiscovered: true }]],
+]);
+const knowledge = makeSeerKnowledge(gmPlayers, "ai", resultsBySeer);
+
+let round: NormalRound = {
+  id: "day-5-normal",
+  aiOrder: chooseAiOrder(3), // 3人なので2番目。
+  votes: [{ voterId: "b", targetId: "a" }], // 人間の先行する1票。
+  aiVote: null,
+};
+
+round = displayAiVote(round, knowledge);
+console.log(round.aiVote?.targetId); // "a"
+console.log(round.votes.length);     // 1：表示しただけではAI票を加算しない。
+
+// GMが口頭で発表して、「発表済み」を押したとき。
+round = markAiVoteAnnounced(round);
+console.log(round.votes.length);     // 2
+
+round = markAiVoteAnnounced(round);
+console.log(round.votes.length);     // 2：もう一度押しても増えない。
+
+------------------------------------------------------------
+【コードの読み方】
+type：扱うデータの項目や種類を定義します。
+function：入力を受け取り、処理した結果を返します。
+filter：条件に合うデータだけを残します。
+map：各データを別の形へ変換します。
+throw new Error：対応できない状態で処理を止めます。
+
+【本実装で必要なこと】
+・人間の投票入力にも、生存者・重複・投票順・自己投票禁止の検査が必要です。
+・AI票の表示中は後続の投票入力を止めるなど、画面側の進行制御も必要です。
+・抽選済みの順番、表示したAI票、発表済み状態は端末に保存します。
+・発表済み状態と集計票は、保存時にもまとめて更新する必要があります。
+  このサンプルの二重押下対策だけでは、再起動や複数タブへの対策は完了しません。
+・AIに渡す情報を分けることは、誤参照を防ぐ設計です。
+  GM端末を操作できる人に対する、秘密情報のアクセス制御ではありません。
+・他の判断規則を足す場合も、AIの関数へGMの全配役を渡さずに拡張します。

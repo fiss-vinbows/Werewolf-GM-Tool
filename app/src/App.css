@@ -1,0 +1,587 @@
+.app {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 12px;
+}
+
+.app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.app-header h1 {
+  font-size: 1.2rem;
+  margin: 0;
+}
+
+.status-bar {
+  display: flex;
+  gap: 12px;
+  font-size: 0.9rem;
+  opacity: 0.85;
+}
+
+.tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 12px 0;
+  border-bottom: 1px solid #444;
+  padding-bottom: 8px;
+}
+
+.tabs button {
+  padding: 8px 12px;
+}
+
+.tabs button.active {
+  background: #6a5acd;
+  color: white;
+}
+
+.screen {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.card {
+  border: 1px solid #444;
+  border-radius: 8px;
+  padding: 12px;
+  text-align: left;
+}
+
+.card h2 {
+  margin-top: 0;
+  font-size: 1.05rem;
+}
+
+.card label {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 0.85rem;
+  margin-bottom: 8px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 8px;
+}
+
+/* 役職名の設定欄：6項目を折り返しなしの1行に収める。 */
+.role-name-row {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 6px;
+  overflow-x: auto;
+}
+
+.role-name-row label {
+  flex: 1 1 0;
+  min-width: 90px;
+  margin-bottom: 0;
+}
+
+.role-name-row input {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+/* 列数の多い表はスマホ幅で潰れて読みにくくなるため、列幅を保ったまま横スクロールさせる。 */
+.table-scroll {
+  overflow-x: auto;
+}
+
+.table-scroll table {
+  width: max-content;
+  min-width: 100%;
+}
+
+.table-scroll th,
+.table-scroll td {
+  white-space: nowrap;
+}
+
+table th,
+table td {
+  border: 1px solid #444;
+  padding: 4px 6px;
+  text-align: left;
+}
+
+.hint {
+  font-size: 0.8rem;
+  opacity: 0.75;
+}
+
+.hint.error {
+  color: #e05252;
+  opacity: 1;
+}
+
+input,
+select,
+textarea,
+button {
+  font-size: 0.9rem;
+}
+
+@media (max-width: 600px) {
+  .app-header h1 {
+    font-size: 1rem;
+  }
+}
+
+.role-board {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.dropzone {
+  border: 2px dashed #555;
+  border-radius: 8px;
+  padding: 8px;
+  min-height: 56px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.dropzone.pool {
+  border-style: solid;
+}
+
+.dropzone.role-zone.over {
+  border-color: #e05252;
+}
+
+.dropzone.role-zone.locked {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.dropzone-label {
+  font-size: 0.8rem;
+  opacity: 0.75;
+  margin-bottom: 6px;
+}
+
+.role-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.role-grid > .dropzone {
+  flex: 1 1 180px;
+}
+
+.chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-height: 30px;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: #6a5acd;
+  color: white;
+  font-size: 0.85rem;
+  user-select: none;
+  cursor: grab;
+  touch-action: none;
+  color-scheme: light;
+  forced-color-adjust: none;
+}
+
+.chip-dead {
+  font-size: 0.65rem;
+  background: rgba(0, 0, 0, 0.35);
+  padding: 1px 5px;
+  border-radius: 999px;
+}
+
+.chip-ai {
+  font-size: 0.65rem;
+  background: rgba(255, 255, 255, 0.25);
+  padding: 1px 5px;
+  border-radius: 999px;
+}
+
+.chip-dragging {
+  opacity: 0.35;
+}
+
+.chip-ghost {
+  position: fixed;
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+  z-index: 1000;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
+}
+
+.toggle-with-labels {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.85rem;
+}
+
+.toggle-switch {
+  position: relative;
+  display: inline-block;
+  width: 42px;
+  height: 24px;
+}
+
+.toggle-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.toggle-slider {
+  position: absolute;
+  inset: 0;
+  background: #555;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.toggle-slider::before {
+  content: '';
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  left: 3px;
+  top: 3px;
+  background: white;
+  border-radius: 50%;
+  transition: transform 0.15s;
+}
+
+.toggle-switch input:checked + .toggle-slider {
+  background: #6a5acd;
+}
+
+.toggle-switch input:checked + .toggle-slider::before {
+  transform: translateX(18px);
+}
+
+.co-board {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.co-source-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 8px;
+  border: 1px solid #444;
+  border-radius: 8px;
+}
+
+.role-area {
+  border-radius: 8px;
+  padding: 8px;
+  border: 1px solid #444;
+  border-left: 6px solid var(--area-color, #666);
+}
+
+.role-area-label {
+  font-size: 0.8rem;
+  opacity: 0.8;
+  margin-bottom: 6px;
+}
+
+.player-drop-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.player-drop-target {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 4px 5px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px dashed transparent;
+  min-width: 0;
+}
+
+.player-drop-target.drop-hover {
+  border-color: #e0c040;
+  background: rgba(224, 192, 64, 0.15);
+}
+
+.player-drop-target.player-dead {
+  opacity: 0.45;
+}
+
+.player-name-label {
+  font-size: 0.85rem;
+}
+
+.co-chip {
+  color: white;
+  font-size: 0.7rem;
+  padding: 2px 8px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color-scheme: light;
+  forced-color-adjust: none;
+}
+
+.co-chip-with-close {
+  padding-right: 4px;
+}
+
+.chip-close {
+  background: rgba(0, 0, 0, 0.3);
+  border: none;
+  color: white;
+  border-radius: 50%;
+  width: 16px;
+  height: 16px;
+  line-height: 1;
+  font-size: 0.7rem;
+  cursor: pointer;
+  padding: 0;
+}
+
+.role-area-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.role-area-row > .role-area {
+  flex: 1 1 220px;
+}
+
+.player-seer-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+  width: 100%;
+}
+
+.judge-dot {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  cursor: grab;
+  touch-action: none;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  color: white;
+  flex-shrink: 0;
+  /* 役職色をライト／ダークモードどちらでも同じ見た目にする（UAの自動色反転を無効化）。 */
+  color-scheme: light;
+  forced-color-adjust: none;
+}
+
+/* 白丸／黒丸は判定結果そのものの色（白 or 黒）で塗り、誰の主張かは縁の色（真の役職色）で示す。
+   役職色に依らず白黒の区別が常にはっきり分かるようにするための配色。 */
+.judge-dot-white,
+.judge-history-dot.judge-dot-white {
+  background: #f2efe6 !important;
+  border-width: 3px !important;
+}
+
+.judge-dot-black,
+.judge-history-dot.judge-dot-black {
+  background: #1b1b1f !important;
+  border-width: 3px !important;
+}
+
+.judge-dot-placeholder {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
+.judge-history {
+  display: flex;
+  gap: 3px;
+  flex-wrap: wrap;
+}
+
+.judge-history-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.6rem;
+  cursor: pointer;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  color: white;
+  color-scheme: light;
+  forced-color-adjust: none;
+}
+
+.menu-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 999;
+}
+
+.mini-menu {
+  position: fixed;
+  z-index: 1001;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  background: #2a2a30;
+  border: 1px solid #555;
+  border-radius: 6px;
+  padding: 4px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
+}
+
+.mini-menu button {
+  white-space: nowrap;
+  text-align: left;
+  font-size: 0.8rem;
+}
+
+.vote-columns {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+.vote-pool {
+  flex: 1 1 200px;
+  border: 1px solid #444;
+  border-radius: 8px;
+  padding: 8px;
+  min-width: 160px;
+}
+
+.vote-targets {
+  flex: 2 1 320px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-content: flex-start;
+}
+
+.vote-target-zone {
+  flex: 1 1 200px;
+  min-height: 0;
+  padding: 4px 6px;
+  border-left: 4px solid var(--target-color, transparent);
+}
+
+.chip-with-co {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  border-radius: 8px;
+  border: 1px dashed transparent;
+}
+
+.chip-with-co.drop-hover {
+  border-color: #e0c040;
+  background: rgba(224, 192, 64, 0.15);
+}
+
+.vote-co-chip {
+  font-size: 0.62rem;
+  padding: 1px 6px;
+}
+
+.vote-target-zone .dropzone-label {
+  margin-bottom: 3px;
+  font-size: 0.75rem;
+}
+
+.vote-target-zone .chip-row {
+  min-height: 0;
+  gap: 3px;
+}
+
+.vote-target-zone .chip {
+  padding: 2px 7px;
+  font-size: 0.75rem;
+}
+
+.vote-target-zone.drop-hover {
+  border-color: #e0c040;
+  background: rgba(224, 192, 64, 0.12);
+}
+
+.chip-vote {
+  cursor: pointer;
+}
+
+.chip-vote:hover {
+  opacity: 0.8;
+}
+
+.bulk-vote-btn {
+  margin-top: 6px;
+  font-size: 0.75rem;
+}
+
+.night-step {
+  border-left: 3px solid #555;
+  padding-left: 10px;
+}
+
+.night-result {
+  color: #8fd19e;
+}
+
+.timer-display {
+  font-variant-numeric: tabular-nums;
+  font-size: 1.3rem;
+  font-weight: 600;
+  min-width: 3.5em;
+}
+
+.timer-zero {
+  color: #e05252;
+}
