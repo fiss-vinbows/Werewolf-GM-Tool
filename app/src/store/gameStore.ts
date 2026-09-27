@@ -94,6 +94,8 @@ type GameStore = {
   setPlayerIsAi: (id: PlayerId, isAi: boolean) => void
   setPlayerSeat: (id: PlayerId, seat: number | null) => void
   setActualRole: (id: PlayerId, role: RoleKey | null) => void
+  // 初日白（予言者への通知対象）を手動で設定する。day1WhiteNoticeMode: 'manual'のときにGMが使う。
+  setDay1WhiteNotice: (id: PlayerId | null) => void
   fillUnassignedAsVillager: () => void
   completeRegistration: () => boolean
   setPlayerDeath: (
@@ -274,17 +276,25 @@ export const useGameStore = create<GameStore>()(
           const seer = players.find((p) => p.actualRole === 'seer')
           // 初日白：人狼全員と予言者本人の登録が揃った時点で、人狼と予言者本人を除く参加者から
           // 一度だけ抽選する（3章）。条件が崩れたら（訂正等）取り消し、揃い直したら再抽選する。
+          // 手動モード（day1WhiteNoticeMode: 'manual'）ではGMが選ぶため、自動抽選・自動取消は行わない。
           const conditionMet = wolves.length === ROLE_COUNTS.wolf && !!seer
           let day1WhiteNotice = s.game.day1WhiteNotice
-          if (!conditionMet) {
-            day1WhiteNotice = null
-          } else if (!day1WhiteNotice || !players.some((p) => p.id === day1WhiteNotice)) {
-            const candidates = players.filter((p) => p.actualRole !== 'wolf' && p.id !== seer!.id)
-            const pick = candidates[Math.floor(Math.random() * candidates.length)]
-            day1WhiteNotice = pick ? pick.id : null
+          if (s.game.meta.day1WhiteNoticeMode !== 'manual') {
+            if (!conditionMet) {
+              day1WhiteNotice = null
+            } else if (!day1WhiteNotice || !players.some((p) => p.id === day1WhiteNotice)) {
+              const candidates = players.filter((p) => p.actualRole !== 'wolf' && p.id !== seer!.id)
+              const pick = candidates[Math.floor(Math.random() * candidates.length)]
+              day1WhiteNotice = pick ? pick.id : null
+            }
           }
           return { game: { ...s.game, players, day1WhiteNotice } }
         })
+      },
+
+      setDay1WhiteNotice: (id) => {
+        get().pushHistory('初日白の手動設定')
+        set((s) => ({ game: { ...s.game, day1WhiteNotice: id } }))
       },
 
       setPlayerDeath: (id, death) => {

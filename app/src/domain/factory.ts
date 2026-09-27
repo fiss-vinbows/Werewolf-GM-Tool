@@ -38,6 +38,7 @@ export function createInitialGameState(): GameState {
       defaultAiOrder: null,
       defaultTimerSeconds: DEFAULT_TIMER_SECONDS,
       resultLabelStyle: 'wolf-human',
+      day1WhiteNoticeMode: 'auto',
     },
     players: createInitialPlayers(13),
     day: 0,

@@ -68,6 +68,25 @@ export function ConfigScreen() {
             黒・白
           </span>
         </label>
+        <label className="row" style={{ alignItems: 'center' }}>
+          <span>初日白（予言者への通知対象）の決め方</span>
+          <span className="toggle-with-labels">
+            自動抽選
+            <span className="toggle-switch">
+              <input
+                type="checkbox"
+                checked={game.meta.day1WhiteNoticeMode === 'manual'}
+                onChange={(e) => updateMeta({ day1WhiteNoticeMode: e.target.checked ? 'manual' : 'auto' })}
+              />
+              <span className="toggle-slider" />
+            </span>
+            手動選択
+          </span>
+        </label>
+        <p className="hint">
+          自動抽選：人狼全員と予言者本人の登録が揃った時点で、システムが人狼・予言者以外から自動で1人抽選します。
+          手動選択：GMが「実役職の割り振り」画面で対象を直接選びます（自動抽選は行いません）。
+        </p>
       </section>
 
       <section className="card">
