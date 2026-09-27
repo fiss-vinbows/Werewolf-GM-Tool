@@ -148,6 +148,42 @@ export function DayScreen({ onGoToVote }: { onGoToVote?: () => void }) {
       </section>
 
       <section className="card">
+        <h2>{roleName('seer')}CO一覧（{roleName('seer')}をCOした人だけをまとめた記録）</h2>
+        <div className="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>日</th>
+              <th>時刻</th>
+              <th>投票番目</th>
+              <th>プレイヤー</th>
+              <th>状態</th>
+            </tr>
+          </thead>
+          <tbody>
+            {game.coRecords
+              .filter((c) => c.claimedRole === 'seer')
+              .slice()
+              .sort((a, b) => b.eventOrder - a.eventOrder)
+              .map((c) => {
+                const p = game.players.find((pl) => pl.id === c.playerId)
+                return (
+                  <tr key={c.id}>
+                    <td>{c.day}日目</td>
+                    <td>{formatTime(c.recordedAt)}</td>
+                    <td>{c.afterVoteCount != null ? `${c.afterVoteCount}票目の後` : '－'}</td>
+                    <td>{p?.displayName}</td>
+                    <td>{CO_STATUS_LABELS[c.status]}</td>
+                  </tr>
+                )
+              })}
+          </tbody>
+        </table>
+        </div>
+        {game.coRecords.filter((c) => c.claimedRole === 'seer').length === 0 && <p className="hint">まだ{roleName('seer')}のCOはありません。</p>}
+      </section>
+
+      <section className="card">
         <h2>備考</h2>
         <textarea
           value={game.meta.memo}

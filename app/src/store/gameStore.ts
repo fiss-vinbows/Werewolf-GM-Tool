@@ -43,6 +43,13 @@ function closeOpenPause(intervals: GameState['pauseIntervals'], nowIso: string):
   return intervals.map((iv, i) => (i === intervals.length - 1 ? { ...iv, end: nowIso } : iv))
 }
 
+// 開いたままの一時停止区間がなければ開始する（タイマーが止まっている間は必ず一時停止区間として
+// 記録し、CO・公表結果の「経過時間」表示がタイマーの動きとズレないようにする）。
+function openPauseIfNeeded(intervals: GameState['pauseIntervals'], nowIso: string): GameState['pauseIntervals'] {
+  if (intervals.length > 0 && intervals[intervals.length - 1].end === null) return intervals
+  return [...intervals, { start: nowIso, end: null }]
+}
+
 function ensureNightRecord(state: GameState, day: number): NightRecord {
   let record = state.nightRecords.find((n) => n.day === day)
   if (!record) {
@@ -335,16 +342,22 @@ export const useGameStore = create<GameStore>()(
       advanceToNextDay: () => {
         get().pushHistory('翌日へ進行')
         // ゲーム全体の投票通し番号・議論終了フラグは日をまたぐとリセットする。
-        set((s) => ({
-          game: {
-            ...s.game,
-            day: s.game.day + 1,
-            phase: 'day',
-            voteEventCounter: 0,
-            discussionEnded: false,
-            pauseIntervals: closeOpenPause(s.game.pauseIntervals, new Date().toISOString()),
-          },
-        }))
+        // 翌日の議論タイマーはまだ開始していないので、一時停止区間として記録し続ける
+        // （夜フェイズの処理時間がCO・公表結果の「経過時間」に混ざらないようにする）。
+        set((s) => {
+          const now = new Date().toISOString()
+          return {
+            game: {
+              ...s.game,
+              day: s.game.day + 1,
+              phase: 'day',
+              voteEventCounter: 0,
+              discussionEnded: false,
+              dayTimer: { ...s.game.dayTimer, running: false, startedAt: null, remainingMs: s.game.dayTimer.durationMs },
+              pauseIntervals: openPauseIfNeeded(s.game.pauseIntervals, now),
+            },
+          }
+        })
       },
 
       // 議論タイマーが0になった、または「議論を切り上げる」ボタンが押されたときに呼ぶ。
@@ -753,14 +766,21 @@ export const useGameStore = create<GameStore>()(
           game: {
             ...s.game,
             dayTimer: { ...s.game.dayTimer, running: false, startedAt: null, remainingMs: s.game.dayTimer.durationMs },
-            pauseIntervals: closeOpenPause(s.game.pauseIntervals, new Date().toISOString()),
+            // リセット後はタイマーが止まった状態になるので、一時停止区間として記録する。
+            pauseIntervals: openPauseIfNeeded(s.game.pauseIntervals, new Date().toISOString()),
           },
         }))
       },
 
       setDayTimerMinutes: (minutes) => {
         const ms = Math.max(0, Math.round(minutes * 60 * 1000))
-        set((s) => ({ game: { ...s.game, dayTimer: { running: false, startedAt: null, durationMs: ms, remainingMs: ms } } }))
+        set((s) => ({
+          game: {
+            ...s.game,
+            dayTimer: { running: false, startedAt: null, durationMs: ms, remainingMs: ms },
+            pauseIntervals: openPauseIfNeeded(s.game.pauseIntervals, new Date().toISOString()),
+          },
+        }))
       },
     }),
     {
