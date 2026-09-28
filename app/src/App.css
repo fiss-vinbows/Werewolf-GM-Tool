@@ -615,3 +615,25 @@ button {
   padding-left: 1.2em;
   font-size: 0.85rem;
 }
+
+/* 参加者選出 */
+.roster-cell {
+  text-align: center;
+  cursor: pointer;
+  min-width: 56px;
+}
+
+.roster-cell.on {
+  background: rgba(60, 140, 220, 0.18);
+}
+
+.roster-cell.played {
+  cursor: default;
+  opacity: 0.7;
+}
+
+.roster-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}

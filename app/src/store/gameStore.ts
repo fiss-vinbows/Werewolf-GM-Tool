@@ -97,6 +97,8 @@ type GameStore = {
   // 参加人数（13/14）を変更する。登録完了前（setupフェーズ）のみ有効。
   setPlayerCount: (count: SupportedPlayerCount) => void
   setPlayerName: (id: PlayerId, name: string) => void
+  // 参加者選出タブで選んだ名前を、AI以外の席へ順に反映する（登録完了前のみ）。人数も合わせる。
+  applyParticipantNames: (names: string[]) => boolean
   setPlayerIsAi: (id: PlayerId, isAi: boolean) => void
   setPlayerSeat: (id: PlayerId, seat: number | null) => void
   setActualRole: (id: PlayerId, role: RoleKey | null) => void
@@ -264,6 +266,22 @@ export const useGameStore = create<GameStore>()(
         set((s) => ({
           game: { ...s.game, players: s.game.players.map((p) => (p.id === id ? { ...p, displayName: name } : p)) },
         }))
+      },
+
+      applyParticipantNames: (names) => {
+        const g0 = get().game
+        if (g0.phase !== 'setup') return false
+        const aiCount = g0.players.filter((p) => p.isAi).length
+        const total = names.length + aiCount
+        if (total !== 13 && total !== 14) return false
+        if (total !== g0.meta.playerCount) get().setPlayerCount(total as SupportedPlayerCount)
+        get().pushHistory('参加者の反映')
+        set((s) => {
+          let i = 0
+          const players = s.game.players.map((p) => (p.isAi ? p : { ...p, displayName: names[i++] ?? p.displayName }))
+          return { game: { ...s.game, players } }
+        })
+        return true
       },
 
       setPlayerIsAi: (id, isAi) => {

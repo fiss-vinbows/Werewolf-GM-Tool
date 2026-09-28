@@ -8,10 +8,12 @@ import { VoteScreen } from './components/VoteScreen'
 import { NightScreen } from './components/NightScreen'
 import { HistoryScreen } from './components/HistoryScreen'
 import { SaveScreen } from './components/SaveScreen'
+import { RosterScreen } from './components/RosterScreen'
 
-type Tab = 'players' | 'config' | 'day' | 'vote' | 'night' | 'history' | 'save'
+type Tab = 'roster' | 'players' | 'config' | 'day' | 'vote' | 'night' | 'history' | 'save'
 
 const TABS: { key: Tab; label: string }[] = [
+  { key: 'roster', label: '参加者選出' },
   { key: 'players', label: 'プレイヤー登録' },
   { key: 'day', label: '昼・CO' },
   { key: 'vote', label: '投票' },
@@ -76,6 +78,7 @@ function App() {
         ))}
       </nav>
       <main>
+        {tab === 'roster' && <RosterScreen onApplied={() => setTab('players')} />}
         {tab === 'players' && <PlayersScreen onRegistered={() => setTab('day')} />}
         {tab === 'day' && <DayScreen onGoToVote={goToVote} />}
         {tab === 'vote' && <VoteScreen onGoToNight={goToNight} />}
