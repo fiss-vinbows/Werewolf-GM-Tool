@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useGameStore } from '../store/gameStore'
-import type { PlayerId } from '../domain/types'
+import type { AiNightActionKind, PlayerId } from '../domain/types'
 import { formatWolfResult } from '../domain/resultLabel'
 import { RoleRoster } from './RoleRoster'
 
@@ -15,6 +15,7 @@ export function NightScreen({ onNextDay }: { onNextDay?: () => void }) {
   const setWolfAction = useGameStore((s) => s.setWolfAction)
   const advanceToNextDay = useGameStore((s) => s.advanceToNextDay)
   const undo = useGameStore((s) => s.undo)
+  const decideAiNightAction = useGameStore((s) => s.decideAiNightAction)
 
   const alivePlayers = game.players.filter((p) => p.alive)
   const night = game.nightRecords.find((n) => n.day === game.day)
@@ -25,8 +26,6 @@ export function NightScreen({ onNextDay }: { onNextDay?: () => void }) {
   const trueSeer = game.players.find((p) => p.actualRole === 'seer')
   const trueGuard = game.players.find((p) => p.actualRole === 'bodyguard')
 
-  // 予言者は自分自身を予言対象にできない。
-  const seerCandidates = alivePlayers.filter((p) => p.id !== trueSeer?.id)
 
   // 「すでに死亡している」＝処刑された、または前日以前に襲撃された場合のみを指す。
   // 今夜人狼に襲撃された対象は、まだ今夜の行動自体は行える（結果が判明するのは翌朝）ため、
@@ -45,6 +44,9 @@ export function NightScreen({ onNextDay }: { onNextDay?: () => void }) {
   const wolfTargetPlayer = night?.wolf ? game.players.find((p) => p.id === night.wolf!.targetId) : undefined
   const guardBaseCandidates =
     wolfTargetPlayer && !wolfTargetPlayer.alive ? [...alivePlayers, wolfTargetPlayer] : alivePlayers
+  // 予言者は自分自身を予言対象にできない。予言は襲撃と同じ夜に行うため、今夜の襲撃先も対象に含める
+  // （AI予言者は今夜の襲撃先を知らずに選ぶ）。
+  const seerCandidates = guardBaseCandidates.filter((p) => p.id !== trueSeer?.id)
   // 自分自身の護衛と、前夜と同じ対象への連続護衛は禁止する。
   const prevNightGuardTarget = game.nightRecords.find((n) => n.day === game.day - 1)?.bodyguard?.targetId
   const guardCandidates = guardBaseCandidates.filter((p) => p.id !== trueGuard?.id && p.id !== prevNightGuardTarget)
@@ -86,6 +88,56 @@ export function NightScreen({ onNextDay }: { onNextDay?: () => void }) {
     if (isAlreadyDeadBeforeTonight(trueGuard)) skipGuardAction(game.day)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mediumDone, guardDone, trueGuard?.alive, trueGuard?.death, game.day])
+
+  // AIの夜行動（5-2）。人間の人狼が生きている間は、AI人狼は仲間の襲撃先に従う（5-4-2）。
+  const aliveWolves = game.players.filter((p) => p.alive && p.actualRole === 'wolf')
+  const aiWolf = aliveWolves.find((p) => p.isAi)
+  const aiDecidesWolf = !!aiWolf && aliveWolves.every((p) => p.isAi)
+  const aiSeerTurn = !!trueSeer?.isAi && wolfDone && !seerDone && !isAlreadyDeadBeforeTonight(trueSeer)
+  const aiGuardTurn = !!trueGuard?.isAi && mediumDone && !guardDone && !isAlreadyDeadBeforeTonight(trueGuard)
+  const aiDecisionOf = (kind: AiNightActionKind) => game.aiNightDecisions?.find((d) => d.day === game.day && d.kind === kind)
+  const pendingAi = [
+    aiDecidesWolf && !wolfDone && game.phase === 'night' && !game.finished ? `wolf:${aiWolf!.id}` : '',
+    aiSeerTurn ? `seer:${trueSeer!.id}` : '',
+    aiGuardTurn ? `guard:${trueGuard!.id}` : '',
+  ]
+    .filter((k) => k && !aiDecisionOf(k.split(':')[0] as AiNightActionKind))
+    .join(',')
+  useEffect(() => {
+    if (!pendingAi) return
+    for (const k of pendingAi.split(',')) {
+      const [kind, id] = k.split(':')
+      decideAiNightAction(kind as AiNightActionKind, id)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingAi])
+
+  function aiSuggestion(kind: AiNightActionKind, active: boolean, candidates: { id: PlayerId }[], apply: (targetId: PlayerId) => void) {
+    const d = aiDecisionOf(kind)
+    if (!active || !d) return null
+    const legal = candidates.some((c) => c.id === d.targetId)
+    return (
+      <div className="ai-vote-notice due">
+        <div>
+          <b>AI {nameOf(d.aiId)}</b> の選択: <b>{nameOf(d.targetId)}</b>
+        </div>
+        <details>
+          <summary>判断理由（GM専用・非公開）</summary>
+          <ul className="ai-reasons">
+            {d.reasons.map((r, i) => (
+              <li key={i}>{r}</li>
+            ))}
+          </ul>
+          <div className="hint">判断方式: {d.policyVersion}</div>
+        </details>
+        {legal ? (
+          <button onClick={() => apply(d.targetId)}>AIの選択で記録</button>
+        ) : (
+          <span className="hint error">AIの選択が現在の候補にありません。手動で入力してください。</span>
+        )}
+      </div>
+    )
+  }
 
   const roleName = (r: string) => game.meta.roleNames[r as keyof typeof game.meta.roleNames] ?? r
   const nameOf = (id: string) => game.players.find((p) => p.id === id)?.displayName ?? id
@@ -194,6 +246,8 @@ export function NightScreen({ onNextDay }: { onNextDay?: () => void }) {
 
         <div className="row night-step">
           <b>1. {roleName('wolf')}の襲撃</b>
+          {!wolfDone && aiWolf && !aiDecidesWolf && <span className="hint">（AI {aiWolf.displayName} は人間の仲間が決めた襲撃先に従います）</span>}
+          {!wolfDone && aiSuggestion('wolf', aiDecidesWolf, wolfCandidates, (t) => setWolfAction({ day: game.day, targetId: t }))}
           {wolfDone ? (
             <span className="night-result">記録済み: {nameOf(night!.wolf!.targetId)} を襲撃</span>
           ) : (
@@ -221,6 +275,7 @@ export function NightScreen({ onNextDay }: { onNextDay?: () => void }) {
             </span>
           )}
           {night?.seerSkipped && <span className="night-result">予言者はすでに死亡（自動スキップ）</span>}
+          {aiSuggestion('seer', aiSeerTurn, seerCandidates, (t) => setSeerAction({ day: game.day, targetId: t }))}
           {!seerDone && wolfDone && (
             <>
               <select value={seerTarget || seerCandidates[0]?.id || ''} onChange={(e) => setSeerTarget(e.target.value)} disabled={!wolfDone}>
@@ -230,6 +285,7 @@ export function NightScreen({ onNextDay }: { onNextDay?: () => void }) {
                     <option key={p.id} value={p.id}>
                       {p.displayName}
                       {hint ? `（${hint}）` : ''}
+                      {!p.alive && '（人狼に襲撃された人）'}
                     </option>
                   )
                 })}
@@ -265,6 +321,7 @@ export function NightScreen({ onNextDay }: { onNextDay?: () => void }) {
             </span>
           )}
           {night?.guardSkipped && <span className="night-result">狩人はすでに死亡（自動スキップ）</span>}
+          {aiSuggestion('guard', aiGuardTurn, guardCandidates, (t) => setBodyguardAction({ day: game.day, targetId: t }))}
           {!guardDone && mediumDone && (
             <>
               <select value={guardTarget || guardCandidates[0]?.id || ''} onChange={(e) => setGuardTarget(e.target.value)} disabled={!mediumDone}>

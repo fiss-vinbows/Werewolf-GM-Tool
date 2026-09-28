@@ -42,6 +42,8 @@ export type AiView = {
   ownSeerResults: OwnResult[]
   ownMediumResults: OwnResult[]
   wolfMateIds: PlayerId[]
+  // 狩人なら自分の過去の護衛先と成否。
+  ownGuardHistory: { day: number; targetId: PlayerId; success: boolean }[]
 }
 
 export type AiViewOptions = {
@@ -55,18 +57,23 @@ export function buildAiView(game: GameState, selfId: PlayerId, opts: AiViewOptio
   const selfRole = self.actualRole ?? 'villager'
   const day = game.day
 
-  const players: PublicPlayer[] = game.players.map((p) => ({
-    id: p.id,
-    displayName: p.displayName,
-    alive: p.alive,
-    death: p.death
-      ? {
-          day: p.death.day,
-          // 公表された死因のみを使う。今夜の襲撃（未公開）は昼の判断時点では存在しない。
-          cause: p.death.publicCause === '処刑' ? 'execution' : p.death.publicCause === '襲撃' ? 'attack' : 'other',
-        }
-      : null,
-  }))
+  const players: PublicPlayer[] = game.players.map((p) => {
+    // 今夜の襲撃による死亡は翌朝まで公開されないため、生存として見せる。
+    const tonightAttack = p.death?.phase === 'night' && p.death.day === day
+    return {
+      id: p.id,
+      displayName: p.displayName,
+      alive: p.alive || tonightAttack,
+      death:
+        tonightAttack || !p.death
+          ? null
+          : {
+              day: p.death.day,
+              // 公表された死因のみを使う。
+              cause: p.death.publicCause === '処刑' ? 'execution' : p.death.publicCause === '襲撃' ? 'attack' : 'other',
+            },
+    }
+  })
 
   const voteRounds: PublicVoteRound[] = game.voteRounds
     .filter((r) => r.day <= day)
@@ -100,6 +107,11 @@ export function buildAiView(game: GameState, selfId: PlayerId, opts: AiViewOptio
   // 人狼は仲間を知る。狂人には人狼の正体を教えない（5-1）。
   const wolfMateIds = selfRole === 'wolf' ? game.players.filter((p) => p.actualRole === 'wolf' && p.id !== selfId).map((p) => p.id) : []
 
+  const ownGuardHistory =
+    selfRole === 'bodyguard'
+      ? pastNights.filter((n) => n.bodyguard).map((n) => ({ day: n.day, targetId: n.bodyguard!.targetId, success: n.bodyguard!.success }))
+      : []
+
   return {
     selfId,
     selfRole,
@@ -112,5 +124,6 @@ export function buildAiView(game: GameState, selfId: PlayerId, opts: AiViewOptio
     ownSeerResults,
     ownMediumResults,
     wolfMateIds,
+    ownGuardHistory,
   }
 }

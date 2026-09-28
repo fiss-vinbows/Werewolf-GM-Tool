@@ -5,7 +5,10 @@ import { ROLE_COUNTS, type SupportedPlayerCount } from '../domain/types'
 import { validateRoleAssignment } from '../domain/roleValidation'
 import { buildAiView } from '../domain/ai/view'
 import { AI_VOTE_POLICY_VERSION, centralVoteOrder, decideVote } from '../domain/ai/vote'
+import { AI_NIGHT_POLICY_VERSION, decideGuardTarget, decideSeerTarget, decideWolfAttack } from '../domain/ai/night'
 import type {
+  AiNightActionKind,
+  AiNightDecision,
   AiVoteDecision,
   CoRecord,
   CoStatus,
@@ -156,6 +159,8 @@ type GameStore = {
   redecideAiVote: (roundId: string, aiId: PlayerId) => void
   // GMが口頭発表した後に押す。AI票を確定して集計に加える（二重押下では重複しない）。
   announceAiVote: (roundId: string, aiId: PlayerId) => void
+  // AIの夜行動を判断して保存する（同じ夜・同じ行動の判断があれば何もしない）。
+  decideAiNightAction: (kind: AiNightActionKind, aiId: PlayerId) => void
 
   // 予言・霊媒の判定結果はGMが入力せず、真の役職からシステムが自動判定する。
   setSeerAction: (input: { day: number; targetId: PlayerId }) => void
@@ -664,6 +669,36 @@ export const useGameStore = create<GameStore>()(
           const g = cloneState(s.game)
           const r = g.voteRounds.find((x) => x.id === roundId)!
           r.aiDecisions = r.aiDecisions?.map((d) => (d.id === decision.id ? { ...d, status: 'announced' } : d))
+          return { game: g }
+        })
+      },
+
+      decideAiNightAction: (kind, aiId) => {
+        const g0 = get().game
+        if (g0.aiNightDecisions?.some((d) => d.day === g0.day && d.kind === kind)) return
+        get().pushHistory('AIの夜行動の判断')
+        set((s) => {
+          const g = cloneState(s.game)
+          const view = buildAiView(g, aiId)
+          let result: { targetId: PlayerId; reasons: string[]; mode?: AiNightDecision['guardMode'] }
+          if (kind === 'seer') result = decideSeerTarget(view)
+          else if (kind === 'wolf') result = decideWolfAttack(view)
+          else {
+            const prev = g.aiNightDecisions?.find((d) => d.kind === 'guard' && d.aiId === aiId && d.day === g.day - 1)
+            result = decideGuardTarget(view, prev?.guardMode ?? null)
+          }
+          const decision: AiNightDecision = {
+            id: newEventId('ainight'),
+            day: g.day,
+            aiId,
+            kind,
+            targetId: result.targetId,
+            guardMode: result.mode,
+            reasons: result.reasons,
+            policyVersion: AI_NIGHT_POLICY_VERSION,
+            decidedAt: new Date().toISOString(),
+          }
+          g.aiNightDecisions = [...(g.aiNightDecisions ?? []), decision]
           return { game: g }
         })
       },
