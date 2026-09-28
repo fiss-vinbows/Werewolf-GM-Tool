@@ -146,6 +146,23 @@ export type VoteRound = {
   executedId: PlayerId | null // 処刑者。処刑なしはnullかつresolvedがtrue。
   resolved: boolean
   nextVoteOrder: number
+  // AIの投票判断（4-4・5-2）。旧データには存在しないため省略可能。
+  aiDecisions?: AiVoteDecision[]
+}
+
+// AIの投票判断の記録。shown=GM画面に表示済み・未発表、announced=GMが口頭発表して票を確定済み、
+// superseded=入力訂正などで再判断したため無効（履歴として残す）。
+export type AiVoteDecision = {
+  id: string
+  aiId: PlayerId
+  targetId: PlayerId
+  // GM用の非公開の判断理由。非公開情報を含み得るため人間プレイヤーには公開しない。
+  reasons: string[]
+  policyVersion: string
+  decidedAt: string
+  // 判断時点で見えていた当該ラウンドの票数。
+  visibleVoteCount: number
+  status: 'shown' | 'announced' | 'superseded'
 }
 
 export type SeerAction = {
@@ -252,4 +269,22 @@ export type GameState = {
   finished: boolean
   winner: 'village' | 'wolf' | null
   history: HistoryEntry[]
+  // AIの夜行動の判断記録（5-2）。旧データには存在しないため省略可能。
+  aiNightDecisions?: AiNightDecision[]
+}
+
+export type AiNightActionKind = 'seer' | 'guard' | 'wolf'
+
+export type AiNightDecision = {
+  id: string
+  day: number
+  aiId: PlayerId
+  kind: AiNightActionKind
+  targetId: PlayerId
+  // 狩人AIの護衛方針（通常の区分／堅実／捨て護衛を区別して保存する）。
+  guardMode?: 'seer' | 'medium' | 'other' | 'solid' | 'throwaway'
+  // GM用の非公開の判断理由。
+  reasons: string[]
+  policyVersion: string
+  decidedAt: string
 }

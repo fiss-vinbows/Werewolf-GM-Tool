@@ -3,7 +3,13 @@ import { persist } from 'zustand/middleware'
 import { createInitialGameState, newEventId } from '../domain/factory'
 import { ROLE_COUNTS, type SupportedPlayerCount } from '../domain/types'
 import { validateRoleAssignment } from '../domain/roleValidation'
+import { buildAiView } from '../domain/ai/view'
+import { AI_VOTE_POLICY_VERSION, centralVoteOrder, decideVote } from '../domain/ai/vote'
+import { AI_NIGHT_POLICY_VERSION, decideGuardTarget, decideSeerTarget, decideWolfAttack } from '../domain/ai/night'
 import type {
+  AiNightActionKind,
+  AiNightDecision,
+  AiVoteDecision,
   CoRecord,
   CoStatus,
   GamePhase,
@@ -147,6 +153,14 @@ type GameStore = {
   // 得票を集計して確定する。最多得票が1人なら処刑を確定し、同数なら自動的に次の決選投票ラウンドを開始する
   // （決選2回目も同数なら処刑者なしで確定し、3回目は行わない）。
   finalizeVoteRound: (roundId: string) => void
+  // AIの投票先を判断して表示する（未発表）。すでに有効な判断があれば何もしない。
+  decideAiVote: (roundId: string, aiId: PlayerId) => void
+  // 未発表のAI判断を破棄して、現時点の情報で判断し直す。
+  redecideAiVote: (roundId: string, aiId: PlayerId) => void
+  // GMが口頭発表した後に押す。AI票を確定して集計に加える（二重押下では重複しない）。
+  announceAiVote: (roundId: string, aiId: PlayerId) => void
+  // AIの夜行動を判断して保存する（同じ夜・同じ行動の判断があれば何もしない）。
+  decideAiNightAction: (kind: AiNightActionKind, aiId: PlayerId) => void
 
   // 予言・霊媒の判定結果はGMが入力せず、真の役職からシステムが自動判定する。
   setSeerAction: (input: { day: number; targetId: PlayerId }) => void
@@ -474,6 +488,11 @@ export const useGameStore = create<GameStore>()(
         get().pushHistory('投票ラウンド開始')
         const id = newEventId('round')
         set((s) => {
+          // AIが参加する通常投票では、初期値がなければ中央順をラウンド開始時に1度だけ抽選して保存する（方針D）。
+          const hasAi = s.game.players.some((p) => p.alive && p.isAi)
+          if (kind === 'normal' && aiOrder === null && hasAi) {
+            aiOrder = centralVoteOrder(s.game.players.filter((p) => p.alive).length)
+          }
           const round: VoteRound = {
             id,
             day,
@@ -521,6 +540,8 @@ export const useGameStore = create<GameStore>()(
           if (!round) return { game: s.game }
           const removed = round.votes.find((v) => v.voterId === voterId)
           round.votes = round.votes.filter((v) => v.voterId !== voterId)
+          // AI票を取り消した場合は、判断を「表示済み・未発表」へ戻す（発表後の訂正として履歴に残る）。
+          round.aiDecisions = round.aiDecisions?.map((d) => (d.aiId === voterId && d.status === 'announced' ? { ...d, status: 'shown' } : d))
           if (removed) {
             // 直近の投票を訂正のために取り消した場合は、番号を巻き戻して欠番のまま増え続けないようにする。
             if (removed.order === round.nextVoteOrder - 1) round.nextVoteOrder -= 1
@@ -595,6 +616,89 @@ export const useGameStore = create<GameStore>()(
             nextVoteOrder: 1,
           }
           g.voteRounds.push(nextRound)
+          return { game: g }
+        })
+      },
+
+      decideAiVote: (roundId, aiId) => {
+        const g0 = get().game
+        const round0 = g0.voteRounds.find((r) => r.id === roundId)
+        if (!round0 || round0.resolved) return
+        if (round0.aiDecisions?.some((d) => d.aiId === aiId && d.status !== 'superseded')) return
+        get().pushHistory('AIの投票判断')
+        set((s) => {
+          const g = cloneState(s.game)
+          const round = g.voteRounds.find((r) => r.id === roundId)!
+          const view = buildAiView(g, aiId, { currentRoundId: roundId })
+          const result = decideVote(view, { id: round.id, kind: round.kind, candidateIds: round.candidateIds })
+          const decision: AiVoteDecision = {
+            id: newEventId('aivote'),
+            aiId,
+            targetId: result.targetId,
+            reasons: result.reasons,
+            policyVersion: AI_VOTE_POLICY_VERSION,
+            decidedAt: new Date().toISOString(),
+            visibleVoteCount: view.voteRounds.find((r) => r.id === roundId)?.votes.length ?? 0,
+            status: 'shown',
+          }
+          round.aiDecisions = [...(round.aiDecisions ?? []), decision]
+          return { game: g }
+        })
+      },
+
+      redecideAiVote: (roundId, aiId) => {
+        const round0 = get().game.voteRounds.find((r) => r.id === roundId)
+        const current = round0?.aiDecisions?.find((d) => d.aiId === aiId && d.status !== 'superseded')
+        if (!round0 || round0.resolved || current?.status === 'announced') return
+        set((s) => {
+          const g = cloneState(s.game)
+          const round = g.voteRounds.find((r) => r.id === roundId)!
+          round.aiDecisions = round.aiDecisions?.map((d) => (d.aiId === aiId && d.status === 'shown' ? { ...d, status: 'superseded' } : d))
+          return { game: g }
+        })
+        get().decideAiVote(roundId, aiId)
+      },
+
+      announceAiVote: (roundId, aiId) => {
+        const round = get().game.voteRounds.find((r) => r.id === roundId)
+        const decision = round?.aiDecisions?.find((d) => d.aiId === aiId && d.status === 'shown')
+        if (!round || round.resolved || !decision) return
+        if (round.votes.some((v) => v.voterId === aiId)) return
+        get().castVote(roundId, { voterId: aiId, targetId: decision.targetId })
+        set((s) => {
+          const g = cloneState(s.game)
+          const r = g.voteRounds.find((x) => x.id === roundId)!
+          r.aiDecisions = r.aiDecisions?.map((d) => (d.id === decision.id ? { ...d, status: 'announced' } : d))
+          return { game: g }
+        })
+      },
+
+      decideAiNightAction: (kind, aiId) => {
+        const g0 = get().game
+        if (g0.aiNightDecisions?.some((d) => d.day === g0.day && d.kind === kind)) return
+        get().pushHistory('AIの夜行動の判断')
+        set((s) => {
+          const g = cloneState(s.game)
+          const view = buildAiView(g, aiId)
+          let result: { targetId: PlayerId; reasons: string[]; mode?: AiNightDecision['guardMode'] }
+          if (kind === 'seer') result = decideSeerTarget(view)
+          else if (kind === 'wolf') result = decideWolfAttack(view)
+          else {
+            const prev = g.aiNightDecisions?.find((d) => d.kind === 'guard' && d.aiId === aiId && d.day === g.day - 1)
+            result = decideGuardTarget(view, prev?.guardMode ?? null)
+          }
+          const decision: AiNightDecision = {
+            id: newEventId('ainight'),
+            day: g.day,
+            aiId,
+            kind,
+            targetId: result.targetId,
+            guardMode: result.mode,
+            reasons: result.reasons,
+            policyVersion: AI_NIGHT_POLICY_VERSION,
+            decidedAt: new Date().toISOString(),
+          }
+          g.aiNightDecisions = [...(g.aiNightDecisions ?? []), decision]
           return { game: g }
         })
       },
