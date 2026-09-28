@@ -65,6 +65,9 @@ function VoteRoundBoard({ round, alivePlayers }: { round: VoteRound; alivePlayer
   const finalizeVoteRound = useGameStore((s) => s.finalizeVoteRound)
   const addCoRecord = useGameStore((s) => s.addCoRecord)
   const changeCoRecord = useGameStore((s) => s.changeCoRecord)
+  const decideAiVote = useGameStore((s) => s.decideAiVote)
+  const redecideAiVote = useGameStore((s) => s.redecideAiVote)
+  const announceAiVote = useGameStore((s) => s.announceAiVote)
 
   const [ghost, setGhost] = useState<{ label: string; color: string; x: number; y: number } | null>(null)
   const [hoverTarget, setHoverTarget] = useState<string | null>(null)
@@ -79,6 +82,22 @@ function VoteRoundBoard({ round, alivePlayers }: { round: VoteRound; alivePlayer
   const counts = targets.map((t) => ({ id: t.id, name: t.displayName, count: round.votes.filter((v) => v.targetId === t.id).length }))
   const maxCount = Math.max(0, ...counts.map((c) => c.count))
   const leaders = counts.filter((c) => c.count === maxCount && maxCount > 0)
+
+  // AIの投票順と判断タイミング（4-4・4-4-2）。通常投票は中央順、決選投票は人間の票を見る前に固定する。
+  const aiVoters = voters.filter((v) => v.isAi).sort((a, b) => a.registrationOrder - b.registrationOrder)
+  const aiSlots = aiVoters.map((ai, i) => {
+    const slot = round.kind === 'normal' ? Math.min((round.aiOrder ?? 1) + i, voters.length) : null
+    const votedCount = round.votes.filter((v) => v.voterId !== ai.id).length
+    const due = !round.resolved && !votedVoterIds.has(ai.id) && (slot === null || votedCount >= slot - 1)
+    const decision = round.aiDecisions?.find((d) => d.aiId === ai.id && d.status !== 'superseded')
+    return { ai, slot, due, remaining: slot === null ? 0 : Math.max(0, slot - 1 - votedCount), decision }
+  })
+  const dueWithoutDecision = aiSlots.filter((s) => s.due && !s.decision).map((s) => s.ai.id).join(',')
+  useEffect(() => {
+    if (!dueWithoutDecision) return
+    for (const id of dueWithoutDecision.split(',')) decideAiVote(round.id, id)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dueWithoutDecision, round.id])
 
   const roleName = (r: RoleKey) => game.meta.roleNames[r] ?? DEFAULT_ROLE_NAMES[r]
 
@@ -169,6 +188,48 @@ function VoteRoundBoard({ round, alivePlayers }: { round: VoteRound; alivePlayer
           </div>
         ))}
       </div>
+
+      {aiSlots.length > 0 && !round.resolved && (
+        <div className="ai-vote-panel">
+          {aiSlots.map(({ ai, slot, due, remaining, decision }) => {
+            const target = decision && game.players.find((p) => p.id === decision.targetId)
+            return (
+              <div key={ai.id} className={`ai-vote-notice${due ? ' due' : ''}`}>
+                <div>
+                  <b>AI {ai.displayName}</b>
+                  {slot !== null && `（${slot}番目に投票）`}
+                  {decision?.status === 'announced' && '：発表済み'}
+                  {!due && !decision && slot !== null && `：あと${remaining}票入力するとAIの番です`}
+                </div>
+                {decision && target && (
+                  <>
+                    <div className="ai-vote-target">
+                      投票先: <PlayerName player={target} />
+                    </div>
+                    <details>
+                      <summary>判断理由（GM専用・非公開）</summary>
+                      <ul className="ai-reasons">
+                        {decision.reasons.map((r, i) => (
+                          <li key={i}>{r}</li>
+                        ))}
+                      </ul>
+                      <div className="hint">
+                        判断方式: {decision.policyVersion}／判断時点の公開票: {decision.visibleVoteCount}票
+                      </div>
+                    </details>
+                    {decision.status === 'shown' && (
+                      <div className="row">
+                        <button onClick={() => announceAiVote(round.id, ai.id)}>発表済み（AI票を確定）</button>
+                        <button onClick={() => redecideAiVote(round.id, ai.id)}>現時点の情報で再判断</button>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      )}
 
       <div className="vote-columns">
         <div className="vote-pool">

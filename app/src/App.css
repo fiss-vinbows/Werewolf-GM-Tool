@@ -585,3 +585,33 @@ button {
 .timer-zero {
   color: #e05252;
 }
+
+/* AIの投票通知（GM専用） */
+.ai-vote-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 8px 0;
+}
+
+.ai-vote-notice {
+  border: 1px dashed #888;
+  border-radius: 6px;
+  padding: 8px;
+}
+
+.ai-vote-notice.due {
+  border: 2px solid #d9a400;
+  background: rgba(217, 164, 0, 0.12);
+}
+
+.ai-vote-target {
+  font-size: 1.1rem;
+  margin: 4px 0;
+}
+
+.ai-reasons {
+  margin: 4px 0;
+  padding-left: 1.2em;
+  font-size: 0.85rem;
+}
