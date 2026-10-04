@@ -426,4 +426,12 @@ describe('C項目: 投票・ローラー', () => {
     const r = round(g, 'runoff1', [], ['p1', 'p3'])
     expect(decide(g, 'p8', r).targetId).toBe('p1')
   })
+  it('C-8: 人狼AIは仲間以外の破綻者に先行票があれば重ねる', () => {
+    const g = setup('p1', 2)
+    co(g, 'p5', 'seer', 1)
+    co(g, 'p9', 'seer', 1)
+    claim(g, 'seer', 'p9', 'p10', 'wolf', 1) // 初日の黒（破綻条件E）
+    const r = round(g, 'normal', [['p11', 'p9']])
+    expect(decide(g, 'p1', r).targetId).toBe('p9')
+  })
 })

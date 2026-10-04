@@ -25,7 +25,7 @@ import {
 import type { AiView } from './view'
 
 // 判断方式の版。方針を変えたら上げる（判断履歴の振り返り用）。
-export const AI_VOTE_POLICY_VERSION = 'vote-rule-9'
+export const AI_VOTE_POLICY_VERSION = 'vote-rule-10'
 
 // 0以上1未満の乱数を返す関数。テストでは固定値を注入する。
 export type Rng = () => number
@@ -236,6 +236,12 @@ function decideWolf(ctx: Ctx): VoteDecisionResult {
     return pick(ctx, pickRandom(ctx, ctx.legal), 'ランダム投票（強制）')
   }
   if (allowed.length < ctx.legal.length) ctx.reasons.push('仲間の人狼を投票対象外')
+  // 仲間以外の破綻者に先行票があれば重ね、村の投票にまぎれる（C-8、2026-10-04確定）。
+  const broken = brokenPlayers(view).filter((b) => allowed.includes(b.playerId) && (ctx.counts.get(b.playerId) ?? 0) > 0)
+  if (broken.length > 0) {
+    const t = pickMost(ctx, broken.map((b) => b.playerId))
+    return pick(ctx, t, `仲間以外の破綻者（${broken.find((b) => b.playerId === t)!.reason}）に先行票があるため重ねる（C-8）`)
+  }
   const roll = joinRoller(ctx, allowed)
   if (roll) return roll
   return pick(ctx, pickRandom(ctx, allowed), followee ? 'ランダム投票（11-4）' : 'ランダム投票（方針C-2）')
