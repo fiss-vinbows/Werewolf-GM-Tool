@@ -32,6 +32,13 @@ describe('予言対象（方針C-3）', () => {
     co(g, 'p6', 'medium'); co(g, 'p4', 'seer')
     for (const r of rngs) expect(['p5', 'p6', 'p4', 'p8']).not.toContain(decideSeerTarget(buildAiView(g, 'p5'), r).targetId)
   })
+  it('B-7: 人狼CO者・狂人CO者も除外し、村人CO者は除外しない', () => {
+    const g = setup('p5', 2)
+    co(g, 'p1', 'wolf'); co(g, 'p4', 'madman'); co(g, 'p9', 'villager')
+    const targets = rngs.map((r) => decideSeerTarget(buildAiView(g, 'p5'), r).targetId)
+    for (const t of targets) expect(['p1', 'p4']).not.toContain(t)
+    expect(targets).toContain('p9')
+  })
   it('通常候補がゼロなら未予言の役職CO者', () => {
     const g = setup('p5', 2)
     co(g, 'p6', 'medium')

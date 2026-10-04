@@ -4,7 +4,7 @@ import { activeClaimants, confirmedWhites, lastDayFinalCounts, nameOf, singleCoH
 import type { Rng } from './vote'
 import type { AiView } from './view'
 
-export const AI_NIGHT_POLICY_VERSION = 'night-rule-1'
+export const AI_NIGHT_POLICY_VERSION = 'night-rule-2'
 
 export type NightDecisionResult = { targetId: PlayerId; reasons: string[] }
 
@@ -39,10 +39,11 @@ export function decideSeerTarget(view: AiView, rng: Rng = Math.random): NightDec
   const others = aliveOthers(view)
   if (others.length === 0) throw new Error('予言可能な対象がいません')
   const seen = new Set(view.ownSeerResults.map((r) => r.targetId))
-  const coHolders = new Set(SPECIAL_ROLES.flatMap((r) => activeClaimants(view, r)))
+  // 役職CO者に加え、自分で人狼・狂人を名乗った人も予言する必要が薄いので除外する（B-7、2026-10-04確定）。
+  const coHolders = new Set([...SPECIAL_ROLES, 'wolf' as const, 'madman' as const].flatMap((r) => activeClaimants(view, r)))
   const normal = others.filter((id) => !seen.has(id) && !coHolders.has(id))
   if (normal.length > 0) {
-    reasons.push(`役職CO者・予言済みを除く${normal.length}人からランダム`)
+    reasons.push(`役職CO者・人狼CO者・狂人CO者・予言済みを除く${normal.length}人からランダム`)
     const t = pickRandom(rng, normal)
     reasons.push(`→ ${nameOf(view, t)}`)
     return { targetId: t, reasons }
