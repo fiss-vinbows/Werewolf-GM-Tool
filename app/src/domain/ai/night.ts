@@ -4,7 +4,7 @@ import { activeClaimants, confirmedWhites, lastDayFinalCounts, nameOf, singleCoH
 import type { Rng } from './vote'
 import type { AiView } from './view'
 
-export const AI_NIGHT_POLICY_VERSION = 'night-rule-2'
+export const AI_NIGHT_POLICY_VERSION = 'night-rule-3'
 
 export type NightDecisionResult = { targetId: PlayerId; reasons: string[] }
 
@@ -91,6 +91,8 @@ export function decideGuardTarget(view: AiView, prevMode: GuardMode | null, rng:
   if (prevMode === 'throwaway') return solid('前夜は捨て護衛だったため、堅実に護衛')
   // 「その他」の翌夜は、確定役職者を守る方針と捨て護衛を各50％。
   if (prevMode === 'other') return rng() < 0.5 ? solid('前夜が「その他」のため50％抽選 → 堅実') : throwaway('前夜が「その他」のため50％抽選 → 捨て護衛')
+  // 「その他」の翌夜以外でも、護衛成功の翌夜は堅実と捨て護衛を各50％（C-15、2026-10-04確定）。
+  if (prevNight?.success) return rng() < 0.5 ? solid('前夜に護衛成功したため50％抽選 → 堅実') : throwaway('前夜に護衛成功したため50％抽選 → 捨て護衛')
 
   // 通常：予言者・霊媒師・その他の区分を等確率で選ぶ（候補がいない区分は除外）。
   const seers = activeClaimants(view, 'seer').filter((id) => legal.includes(id))

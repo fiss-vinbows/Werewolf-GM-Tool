@@ -54,6 +54,15 @@ describe('護衛（5-4-1）', () => {
     g.nightRecords.push(night(2, { bodyguard: { day: 2, targetId: 'p9', success: false } }))
     for (const r of rngs) expect(['p7', 'p9']).not.toContain(decideGuardTarget(buildAiView(g, 'p7'), null, r).targetId)
   })
+  it('C-15: 護衛成功の翌夜は堅実と捨て護衛を各50％', () => {
+    const g = setup('p7', 3)
+    co(g, 'p5', 'seer')
+    g.nightRecords.push(night(2, { bodyguard: { day: 2, targetId: 'p9', success: true } }))
+    expect(decideGuardTarget(buildAiView(g, 'p7'), 'seer', () => 0.1).mode).toBe('solid')
+    expect(decideGuardTarget(buildAiView(g, 'p7'), 'seer', () => 0.9).mode).toBe('throwaway')
+    // 前夜が捨て護衛なら、成功していても堅実（連続の捨て護衛はしない）。
+    expect(decideGuardTarget(buildAiView(g, 'p7'), 'throwaway', () => 0.9).mode).toBe('solid')
+  })
   it('前夜が捨て護衛なら確定役職者を守る', () => {
     const g = setup('p7', 3)
     co(g, 'p5', 'seer')
