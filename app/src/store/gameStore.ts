@@ -643,7 +643,7 @@ export const useGameStore = create<GameStore>()(
             // 投票なし、または決選2回目の同数：処刑者なしで確定する（3回目の決選は行わない）。
             return { game: g }
           }
-          // 同数のため自動的に次の決選投票ラウンドへ進む。
+          // 同数のため自動的に次の決選投票ラウンドへ進む。候補は同数最多の人だけに絞る（仕様4-4-1、2026-10-04確定）。
           const nextKind: VoteRoundKind = round.kind === 'normal' ? 'runoff1' : 'runoff2'
           const nextRound: VoteRound = {
             id: newEventId('round'),
