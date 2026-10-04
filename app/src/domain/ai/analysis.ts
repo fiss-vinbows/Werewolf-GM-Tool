@@ -145,7 +145,11 @@ export function executionMargin(view: AiView): { margin: number; remainingEvil: 
   for (const id of executed) {
     const own = view.ownMediumResults.find((r) => r.targetId === id)
     const publicMedium = cMedium ? mediumClaims(view).find((c) => c.speakerId === cMedium && c.targetId === id) : undefined
-    const isWolf = own ? own.result === 'wolf' : publicMedium?.result === 'wolf'
+    // 霊媒CO者全員が同じ処刑者に黒を出していれば、人狼の処刑を確認済みとする（C-10、2026-10-04確定）。
+    const mediums = activeClaimants(view, 'medium')
+    const forX = mediumClaims(view).filter((c) => c.targetId === id)
+    const allMediumsBlack = mediums.length > 0 && mediums.every((m) => forX.some((c) => c.speakerId === m && c.result === 'wolf')) && forX.every((c) => c.result === 'wolf')
+    const isWolf = own ? own.result === 'wolf' : publicMedium ? publicMedium.result === 'wolf' : allMediumsBlack
     // 霊媒結果と破綻を二重加算しない。
     if (isWolf || broken.has(id)) confirmedEvilDead += 1
   }
@@ -239,11 +243,14 @@ export function lastDayFinalCounts(view: AiView): Map<PlayerId, number> {
 // adopted: 処刑者ごとに採用する霊媒結果。
 export function villageScores(view: AiView, adopted: Map<PlayerId, 'wolf' | 'not-wolf'>): Map<PlayerId, number> {
   const scores = new Map<PlayerId, number>()
+  const madmen = new Set(activeClaimants(view, 'madman'))
   for (const round of view.voteRounds) {
     if (!round.resolved) continue
     for (const v of round.votes) {
       const res = adopted.get(v.targetId)
       if (!res) continue // 未判定の投票先は保留
+      // 狂人COした人（霊媒結果は人間）への投票は0点。狂人は人狼陣営なので、投票者を疑う理由にならない（C-13、2026-10-04確定）。
+      if (res === 'not-wolf' && madmen.has(v.targetId)) continue
       const delta = round.kind === 'normal' ? (res === 'wolf' ? 20 : -10) : res === 'wolf' ? 5 : -3
       scores.set(v.voterId, (scores.get(v.voterId) ?? 0) + delta)
     }

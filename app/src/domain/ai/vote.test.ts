@@ -434,4 +434,29 @@ describe('C項目: 投票・ローラー', () => {
     const r = round(g, 'normal', [['p11', 'p9']])
     expect(decide(g, 'p1', r).targetId).toBe('p9')
   })
+  it('C-10: 霊媒CO者全員が黒なら人狼の処刑を確認済みとして余裕数を計算する', () => {
+    const g = setup('p8', 2)
+    co(g, 'p6', 'medium', 1)
+    co(g, 'p9', 'medium', 1)
+    kill(g, 'p1', 'execution', 1)
+    claim(g, 'medium', 'p6', 'p1', 'wolf', 1)
+    claim(g, 'medium', 'p9', 'p1', 'wolf', 1)
+    const r = round(g, 'normal', [])
+    expect(decide(g, 'p8', r, seq(0.5)).reasons.join()).toContain('残存人外最大3人')
+  })
+  it('C-13: 狂人COした人（霊媒結果は人間）への投票は0点', () => {
+    const g = setup('p8', 2)
+    co(g, 'p6', 'medium', 1)
+    co(g, 'p4', 'madman', 1)
+    const d1 = round(g, 'normal', [['p9', 'p4'], ['p10', 'p11']])
+    d1.day = 1; d1.resolved = true; d1.executedId = 'p4'
+    kill(g, 'p4', 'execution', 1)
+    claim(g, 'medium', 'p6', 'p4', 'not-wolf', 1)
+    const r = round(g, 'normal', [])
+    const reasons = decide(g, 'p8', r, seq(0.5)).reasons.join()
+    expect(reasons).not.toContain('プレイヤー9 -10')
+    // 対照：狂人COを撤回させると通常どおり－10になる。
+    g.coRecords.find((c) => c.playerId === 'p4')!.status = 'retracted'
+    expect(decide(g, 'p8', round(g, 'normal', []), seq(0.5)).reasons.join()).toContain('プレイヤー9 -10')
+  })
 })
