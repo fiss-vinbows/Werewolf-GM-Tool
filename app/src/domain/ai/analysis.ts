@@ -279,3 +279,31 @@ export function nameOf(view: AiView, id: PlayerId): string {
 export function roleLabel(role: RoleKey): string {
   return { villager: '村人', wolf: '人狼', madman: '狂人', seer: '予言者', medium: '霊媒師', bodyguard: '狩人' }[role]
 }
+
+// 生存中の有効な人狼CO者を、実際のCO順（eventOrder）で並べる（11-1）。
+// 撤回・死亡した人は除く。同じ人が複数回人狼COした場合は、現在有効なCOのうち最初のものを使う。
+export function wolfCoOrder(view: AiView): PlayerId[] {
+  const first = new Map<PlayerId, number>()
+  for (const c of view.coRecords) {
+    if (c.status !== 'active' || c.claimedRole !== 'wolf' || !isAlive(view, c.playerId)) continue
+    first.set(c.playerId, Math.min(first.get(c.playerId) ?? Infinity, c.eventOrder))
+  }
+  return [...first.entries()].sort((a, b) => a[1] - b[1]).map(([id]) => id)
+}
+
+// 追従対象者の参照できる票（11-1・11-5）。
+// 通常投票：判断中のラウンドで公開済みの票。決選投票：同じ日の直前ラウンドの公開済みの票。
+// 参照できる票がなければnull（11-5の未確定事項。呼び出し側で候補内ランダムとする暫定案）。
+export function followeeVote(view: AiView, followeeId: PlayerId, roundId: string): PlayerId | null {
+  const idx = view.voteRounds.findIndex((r) => r.id === roundId)
+  if (idx < 0) return null
+  const current = view.voteRounds[idx]
+  let ref: PublicVoteRound | undefined = current
+  if (current.kind !== 'normal') {
+    ref = view.voteRounds
+      .slice(0, idx)
+      .reverse()
+      .find((r) => r.day === current.day)
+  }
+  return ref?.votes.find((v) => v.voterId === followeeId)?.targetId ?? null
+}

@@ -172,3 +172,78 @@ describe('方針D: 中央順', () => {
     expect(centralVoteOrder(8, () => 0.9)).toBe(5)
   })
 })
+
+describe('11章: パワープレイ', () => {
+  it('11-2: 狂人AIは最初の人狼CO者の公開済みの票に追従する（後からのCO者には切り替えない）', () => {
+    const g = setup('p4', 3)
+    co(g, 'p2', 'wolf', 3)
+    co(g, 'p1', 'wolf', 3)
+    const r = round(g, 'normal', [['p1', 'p9'], ['p2', 'p8']])
+    expect(decide(g, 'p4', r).targetId).toBe('p8')
+  })
+  it('11-2: 追従先が人狼CO者でも追従する', () => {
+    const g = setup('p4', 3)
+    co(g, 'p2', 'wolf', 3)
+    co(g, 'p1', 'wolf', 3)
+    const r = round(g, 'normal', [['p2', 'p1']])
+    expect(decide(g, 'p4', r).targetId).toBe('p1')
+  })
+  it('11-2: 最初のCO者が死亡したら次のCO者に切り替える', () => {
+    const g = setup('p4', 3)
+    co(g, 'p2', 'wolf', 2)
+    co(g, 'p1', 'wolf', 2)
+    kill(g, 'p2', 'execution', 2)
+    const r = round(g, 'normal', [['p1', 'p10']])
+    expect(decide(g, 'p4', r).targetId).toBe('p10')
+  })
+  it('11-2: 追従対象の票が見えなければ、人狼CO者を除いてランダム', () => {
+    const g = setup('p4', 3)
+    co(g, 'p1', 'wolf', 3)
+    const r = round(g, 'normal', [])
+    for (const x of [0, 0.3, 0.6, 0.99]) expect(decide(g, 'p4', r, seq(x)).targetId).not.toBe('p1')
+  })
+  it('11-2: 追従先が自分なら自分と人狼CO者を除いてランダム', () => {
+    const g = setup('p4', 3)
+    co(g, 'p1', 'wolf', 3)
+    const r = round(g, 'normal', [['p1', 'p4']])
+    const t = decide(g, 'p4', r).targetId
+    expect(['p1', 'p4']).not.toContain(t)
+  })
+  it('11-5: 決選では直前ラウンドの公開済み票が候補に残っていれば追従', () => {
+    const g = setup('p4', 3)
+    co(g, 'p1', 'wolf', 3)
+    const r1 = round(g, 'normal', [['p1', 'p9'], ['p2', 'p8']])
+    r1.resolved = true
+    const r2 = round(g, 'runoff1', [], ['p8', 'p9'])
+    expect(decide(g, 'p4', r2).targetId).toBe('p9')
+  })
+  it('11-4: 人狼AIは人狼COした仲間の票に追従する（仲間への票でも）', () => {
+    const g = setup('p1', 3)
+    co(g, 'p2', 'wolf', 3)
+    const r = round(g, 'normal', [['p2', 'p3']])
+    expect(decide(g, 'p1', r).targetId).toBe('p3')
+  })
+  it('11-4: 仲間でない人の人狼COには追従しない', () => {
+    const g = setup('p1', 3)
+    co(g, 'p9', 'wolf', 3)
+    const r = round(g, 'normal', [['p9', 'p2']])
+    for (const x of [0, 0.5, 0.99]) expect(['p2', 'p3']).not.toContain(decide(g, 'p1', r, seq(x)).targetId)
+  })
+  it('11-6: 村人AIは最初の人狼CO者に投票する', () => {
+    const g = setup('p8', 3)
+    co(g, 'p3', 'wolf', 3)
+    co(g, 'p1', 'wolf', 3)
+    const r = round(g, 'normal', [])
+    expect(decide(g, 'p8', r).targetId).toBe('p3')
+  })
+  it('11-6: 狂人CO者に先行票があれば重ね、なければランダム', () => {
+    const g = setup('p8', 3)
+    co(g, 'p4', 'madman', 3)
+    const r = round(g, 'normal', [['p9', 'p4']])
+    expect(decide(g, 'p8', r).targetId).toBe('p4')
+    const g2 = setup('p8', 3)
+    co(g2, 'p4', 'madman', 3)
+    const r2 = round(g2, 'normal', [['p9', 'p10']])
+    expect(decide(g2, 'p8', r2).reasons.join()).toContain('先行票がない')
+  })
+})

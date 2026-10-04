@@ -8,6 +8,7 @@ import {
   confirmedWolves,
   detectRoller,
   executionMargin,
+  followeeVote,
   isAlive,
   mediumClaims,
   nameOf,
@@ -18,11 +19,12 @@ import {
   unique,
   villageScores,
   voteCounts,
+  wolfCoOrder,
 } from './analysis'
 import type { AiView } from './view'
 
 // 判断方式の版。方針を変えたら上げる（判断履歴の振り返り用）。
-export const AI_VOTE_POLICY_VERSION = 'vote-rule-1'
+export const AI_VOTE_POLICY_VERSION = 'vote-rule-2'
 
 // 0以上1未満の乱数を返す関数。テストでは固定値を注入する。
 export type Rng = () => number
@@ -94,6 +96,14 @@ function decideVillageSide(ctx: Ctx, margin: number): VoteDecisionResult {
   if (cwTargets.length > 0) {
     const t = pickMost(ctx, cwTargets)
     return pick(ctx, t, `確定人狼扱い（${wolves.get(t)}）へ投票`)
+  }
+
+  // 1b. パワープレイへの対応（11-6）。対象は村人AIのみ。
+  // 予言者・霊媒師・狩人AIへの適用範囲と、確定人狼との優先関係は要相談のため、
+  // 暫定として「確定人狼の次・破綻者の前」に置く。
+  if (view.selfRole === 'villager') {
+    const pp = decideVillagerAgainstPp(ctx, allowed)
+    if (pp) return pp
   }
 
   // 2. 破綻者（死票を避けるため既得票者を優先）。
@@ -170,14 +180,27 @@ function forcedVillage(ctx: Ctx): VoteDecisionResult {
 }
 
 function decideWolf(ctx: Ctx): VoteDecisionResult {
-  const mates = new Set(ctx.view.wolfMateIds)
+  const { view } = ctx
+  const mates = new Set(view.wolfMateIds)
   const allowed = ctx.legal.filter((id) => !mates.has(id))
+
+  // 仲間の人狼が人狼COしていれば、パワープレイとしてその仲間の票に合わせる（11-4・11-5）。
+  // 複数の仲間が人狼COした場合の優先順位は未確定。暫定として最初にCOした仲間を追従する。
+  const followee = wolfCoOrder(view).find((id) => mates.has(id))
+  if (followee) {
+    ctx.reasons.push(`仲間の${nameOf(view, followee)}が人狼CO（パワープレイの可能性が高い）`)
+    const target = followeeVote(view, followee, ctx.round.id)
+    // 仲間が別の仲間に投票していても追従する（通常の仲間保護の例外）。
+    if (target && ctx.legal.includes(target)) return pick(ctx, target, `人狼COした仲間${nameOf(view, followee)}の投票先に追従`)
+    ctx.reasons.push(target ? '追従先が今回の候補にいないため、候補内からランダム' : `${nameOf(view, followee)}の投票を認識できないため、仲間を除いてランダム`)
+  }
+
   if (allowed.length === 0) {
     ctx.reasons.push('候補が全員仲間の人狼のため、決選の強制投票として例外的に投票')
     return pick(ctx, pickRandom(ctx, ctx.legal), 'ランダム投票（強制）')
   }
   if (allowed.length < ctx.legal.length) ctx.reasons.push('仲間の人狼を投票対象外')
-  return pick(ctx, pickRandom(ctx, allowed), 'ランダム投票（方針C-2）')
+  return pick(ctx, pickRandom(ctx, allowed), followee ? 'ランダム投票（11-4）' : 'ランダム投票（方針C-2）')
 }
 
 // 狂人AIの人狼扱い（5-4-3）。
@@ -190,6 +213,25 @@ function decideMadman(ctx: Ctx): VoteDecisionResult {
     if (c.result === 'not-wolf' && seers.includes(c.targetId) && c.targetId !== c.speakerId) treated.set(c.speakerId, '別の予言者CO者に人間結果を出した予言者CO者')
   }
   for (const b of brokenPlayers(view)) if (!treated.has(b.playerId)) treated.set(b.playerId, `破綻者（${b.reason}）`)
+
+  // パワープレイの追従モード（11-2・11-5）。生存する有効な人狼CO者がいる限り、最初にCOした人に合わせる。
+  const wolfCos = wolfCoOrder(view)
+  if (wolfCos.length > 0) {
+    const followee = wolfCos[0]
+    ctx.reasons.push(`追従モード: 最初の人狼CO者${nameOf(view, followee)}を信用`)
+    const target = followeeVote(view, followee, ctx.round.id)
+    // 人狼CO者・人狼扱いの人への票でも追従する。追従先が自分なら下のランダムへ。
+    if (target && target !== view.selfId && ctx.legal.includes(target)) return pick(ctx, target, `${nameOf(view, followee)}の投票先に追従`)
+    ctx.reasons.push(
+      target === view.selfId
+        ? '追従先が自分のため、人狼CO者・人狼扱いの人を除いてランダム'
+        : target
+          ? '追従先が今回の候補にいないため、候補内からランダム'
+          : `${nameOf(view, followee)}の投票を認識できないため、人狼CO者・人狼扱いの人を除いてランダム`,
+    )
+    for (const id of wolfCos) if (!treated.has(id)) treated.set(id, '人狼CO者')
+  }
+
   const allowed = ctx.legal.filter((id) => !treated.has(id))
   const excludedHere = ctx.legal.filter((id) => treated.has(id))
   if (excludedHere.length > 0) ctx.reasons.push(`人狼扱いで投票対象外: ${excludedHere.map((id) => `${nameOf(view, id)}（${treated.get(id)}）`).join('、')}`)
@@ -198,6 +240,21 @@ function decideMadman(ctx: Ctx): VoteDecisionResult {
     return pick(ctx, pickRandom(ctx, ctx.legal), 'ランダム投票（強制）')
   }
   return pick(ctx, pickRandom(ctx, allowed), 'ランダム投票（5-4-3）')
+}
+
+// 村人AIの人狼CO・狂人COへの対応（11-6）。裏読みはせず、該当がなければnullを返して通常判断へ。
+function decideVillagerAgainstPp(ctx: Ctx, allowed: PlayerId[]): VoteDecisionResult | null {
+  const { view } = ctx
+  // 人狼CO者には投票する。複数いれば最初にCOした人。
+  const wolfCo = wolfCoOrder(view).find((id) => allowed.includes(id))
+  if (wolfCo) return pick(ctx, wolfCo, '人狼CO者へ投票（複数なら最初にCOした人）（11-6）')
+  // 狂人CO者：自分より前の票が1票以上あれば重ね、なければランダム。
+  const madCos = activeClaimants(view, 'madman').filter((id) => allowed.includes(id))
+  if (madCos.length === 0) return null
+  const withVotes = madCos.filter((id) => (ctx.counts.get(id) ?? 0) > 0)
+  if (withVotes.length > 0) return pick(ctx, pickMost(ctx, withVotes), '狂人CO者に先行票があるため重ねる（11-6）')
+  ctx.reasons.push(`狂人CO者（${madCos.map((id) => nameOf(view, id)).join('、')}）に先行票がないため、ランダム（11-6）`)
+  return pick(ctx, pickRandom(ctx, allowed), 'ランダム投票')
 }
 
 function findMediumSplit(
