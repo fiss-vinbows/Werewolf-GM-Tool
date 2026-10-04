@@ -9,8 +9,9 @@ import { NightScreen } from './components/NightScreen'
 import { HistoryScreen } from './components/HistoryScreen'
 import { SaveScreen } from './components/SaveScreen'
 import { RosterScreen } from './components/RosterScreen'
+import { AiLogScreen } from './components/AiLogScreen'
 
-type Tab = 'roster' | 'players' | 'config' | 'day' | 'vote' | 'night' | 'history' | 'save'
+type Tab = 'roster' | 'players' | 'config' | 'day' | 'vote' | 'night' | 'history' | 'ailog' | 'save'
 
 const TABS: { key: Tab; label: string }[] = [
   { key: 'roster', label: '参加者選出' },
@@ -19,6 +20,7 @@ const TABS: { key: Tab; label: string }[] = [
   { key: 'vote', label: '投票' },
   { key: 'night', label: '夜' },
   { key: 'history', label: '訂正' },
+  { key: 'ailog', label: 'AI記録' },
   { key: 'save', label: '保存・終了' },
   { key: 'config', label: '設定' },
 ]
@@ -84,6 +86,7 @@ function App() {
         {tab === 'vote' && <VoteScreen onGoToNight={goToNight} />}
         {tab === 'night' && <NightScreen onNextDay={() => setTab('day')} />}
         {tab === 'history' && <HistoryScreen />}
+        {tab === 'ailog' && <AiLogScreen />}
         {tab === 'save' && <SaveScreen />}
         {tab === 'config' && <ConfigScreen />}
       </main>

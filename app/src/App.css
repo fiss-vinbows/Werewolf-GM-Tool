@@ -637,3 +637,20 @@ button {
   flex-direction: column;
   gap: 4px;
 }
+
+/* AI判断履歴 */
+.ai-log-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.ai-log-list > li {
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(128, 128, 128, 0.25);
+}
+.ai-log-list > li:last-child {
+  border-bottom: none;
+}
+.ai-log-superseded {
+  opacity: 0.5;
+}
