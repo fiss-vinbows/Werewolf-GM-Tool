@@ -293,7 +293,7 @@ export function wolfCoOrder(view: AiView): PlayerId[] {
 
 // 追従対象者の参照できる票（11-1・11-5）。
 // 通常投票：判断中のラウンドで公開済みの票。決選投票：同じ日の直前ラウンドの公開済みの票。
-// 参照できる票がなければnull（11-5の未確定事項。呼び出し側で候補内ランダムとする暫定案）。
+// 参照できる票がなければnull（11-5。呼び出し側で候補内ランダムとする、2026-10-04確定）。
 export function followeeVote(view: AiView, followeeId: PlayerId, roundId: string): PlayerId | null {
   const idx = view.voteRounds.findIndex((r) => r.id === roundId)
   if (idx < 0) return null

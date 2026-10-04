@@ -207,7 +207,7 @@ function decideWolf(ctx: Ctx): VoteDecisionResult {
   const allowed = ctx.legal.filter((id) => !mates.has(id))
 
   // 仲間の人狼が人狼COしていれば、パワープレイとしてその仲間の票に合わせる（11-4・11-5）。
-  // 複数の仲間が人狼COした場合の優先順位は未確定。暫定として最初にCOした仲間を追従する。
+  // 複数の仲間が人狼COした場合は、最初にCOした仲間を追従する（2026-10-04確定）。
   const followee = wolfCoOrder(view).find((id) => mates.has(id))
   if (followee) {
     ctx.reasons.push(`仲間の${nameOf(view, followee)}が人狼CO（パワープレイの可能性が高い）`)
