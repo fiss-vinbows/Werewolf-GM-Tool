@@ -2,11 +2,10 @@ import { useState } from 'react'
 import { useGameStore } from '../store/gameStore'
 import { DEFAULT_ROLE_NAMES, type RoleKey } from '../domain/types'
 
-// ゲーム進行とは直接関係のない設定項目（座席モード・役職名・メモ）をまとめる。
+// ゲーム進行とは直接関係のない設定項目（役職名・メモなど）をまとめる。
 export function ConfigScreen() {
   const game = useGameStore((s) => s.game)
   const updateMeta = useGameStore((s) => s.updateMeta)
-  const setSeatMode = useGameStore((s) => s.setSeatMode)
   const setRoleName = useGameStore((s) => s.setRoleName)
   const resetKeepingNames = useGameStore((s) => s.resetKeepingNames)
   const setDayTimerMinutes = useGameStore((s) => s.setDayTimerMinutes)
@@ -25,13 +24,6 @@ export function ConfigScreen() {
         <label>
           自由メモ
           <textarea value={game.meta.memo} onChange={(e) => updateMeta({ memo: e.target.value })} />
-        </label>
-        <label>
-          座席モード
-          <select value={game.meta.seatMode} onChange={(e) => setSeatMode(e.target.value as 'fixed' | 'flexible')}>
-            <option value="fixed">固定（席替えなし）</option>
-            <option value="flexible">非固定（席替えあり・座席は記録しない）</option>
-          </select>
         </label>
         <label>
           通常投票のAI中央投票順（初期値）

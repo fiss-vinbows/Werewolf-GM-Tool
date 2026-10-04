@@ -20,7 +20,6 @@ import type {
   ResultClaim,
   ResultClaimKind,
   RoleKey,
-  SeatMode,
   Vote,
   VoteRound,
   VoteRoundKind,
@@ -98,7 +97,6 @@ type GameStore = {
   resetGame: () => void
 
   updateMeta: (patch: Partial<GameState['meta']>) => void
-  setSeatMode: (mode: SeatMode) => void
   setRoleName: (role: RoleKey, name: string) => void
 
   // 参加人数（13/14）を変更する。登録完了前（setupフェーズ）のみ有効。
@@ -107,7 +105,6 @@ type GameStore = {
   // 参加者選出タブで選んだ名前を、AI以外の席へ順に反映する（登録完了前のみ）。人数も合わせる。
   applyParticipantNames: (names: string[]) => boolean
   setPlayerIsAi: (id: PlayerId, isAi: boolean) => void
-  setPlayerSeat: (id: PlayerId, seat: number | null) => void
   setActualRole: (id: PlayerId, role: RoleKey | null) => void
   // 初日白（予言者への通知対象）を手動で設定する。day1WhiteNoticeMode: 'manual'のときにGMが使う。
   setDay1WhiteNotice: (id: PlayerId | null) => void
@@ -231,8 +228,6 @@ export const useGameStore = create<GameStore>()(
           game: { ...s.game, meta: { ...s.game.meta, ...patch, updatedAt: new Date().toISOString() } },
         })),
 
-      setSeatMode: (mode) =>
-        set((s) => ({ game: { ...s.game, meta: { ...s.game.meta, seatMode: mode, updatedAt: new Date().toISOString() } } })),
 
       setRoleName: (role, name) =>
         set((s) => ({
@@ -259,7 +254,6 @@ export const useGameStore = create<GameStore>()(
                       registrationOrder: order,
                       isAi: false,
                       actualRole: null,
-                      seatNumber: order,
                       alive: true,
                       death: null,
                     } as Player
@@ -297,13 +291,6 @@ export const useGameStore = create<GameStore>()(
         get().pushHistory('AI設定の変更')
         set((s) => ({
           game: { ...s.game, players: s.game.players.map((p) => (p.id === id ? { ...p, isAi } : p)) },
-        }))
-      },
-
-      setPlayerSeat: (id, seat) => {
-        get().pushHistory('座席の変更')
-        set((s) => ({
-          game: { ...s.game, players: s.game.players.map((p) => (p.id === id ? { ...p, seatNumber: seat } : p)) },
         }))
       },
 

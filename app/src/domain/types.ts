@@ -33,7 +33,7 @@ export const SUPPORTED_PLAYER_COUNTS = [13, 14] as const
 export type SupportedPlayerCount = (typeof SUPPORTED_PLAYER_COUNTS)[number]
 
 // 人狼・狂人・予言者・霊媒師・狩人の人数は13人時と同じ7人のまま固定し、
-// 増えた分はすべて村人に割り当てる（暫定案・要確認：14人時の配役は仕様未確定）。
+// 増えた分はすべて村人に割り当てる（14人時は村人+1、2026-10-04確定）。
 const FIXED_ROLE_TOTAL = ROLE_COUNTS.wolf + ROLE_COUNTS.madman + ROLE_COUNTS.seer + ROLE_COUNTS.medium + ROLE_COUNTS.bodyguard
 
 export function roleCountsFor(playerCount: number): Record<RoleKey, number> {
@@ -65,7 +65,6 @@ export type Player = {
   isAi: boolean
   // 実役職。役職確認の進行に応じて段階的に入力するため未確定を許容する。
   actualRole: RoleKey | null
-  seatNumber: number | null // 固定モードのみ使用
   alive: boolean
   death: {
     day: number
@@ -85,7 +84,6 @@ export type GamePhase =
   | 'morning' // 朝：結果公開
   | 'finished'
 
-export type SeatMode = 'fixed' | 'flexible'
 
 export type CoStatus = 'active' | 'retracted' | 'changed'
 
@@ -225,7 +223,6 @@ export type GameMeta = {
   updatedAt: string
   ruleNote: string
   memo: string
-  seatMode: SeatMode
   roleNames: Record<RoleKey, string>
   // 参加人数（13人または14人。増えた分はすべて村人に割り当てる）。登録完了前のみ変更可。
   playerCount: SupportedPlayerCount

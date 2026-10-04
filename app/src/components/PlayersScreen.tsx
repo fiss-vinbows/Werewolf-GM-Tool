@@ -70,7 +70,7 @@ export function PlayersScreen({ onRegistered }: { onRegistered?: () => void }) {
         <table>
           <thead>
             <tr>
-              <th>座席/順</th>
+              <th>順</th>
               <th>表示名</th>
               <th>AI</th>
             </tr>

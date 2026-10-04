@@ -11,7 +11,9 @@
     "test": "vitest run",
     "build:electron": "tsc -b && vite build --mode electron",
     "electron": "npm run build:electron && electron .",
-    "dist:win": "npm run build:electron && electron-builder --win"
+    "dist:win": "npm run build:electron && electron-builder --win",
+    "build:standalone": "tsc -b && vite build --mode standalone",
+    "dist:zip": "npm run build:standalone && node scripts/make-zip.mjs"
   },
   "dependencies": {
     "react": "^19.2.8",
@@ -29,6 +31,7 @@
     "typescript": "~6.0.2",
     "vite": "^8.3.0",
     "vite-plugin-pwa": "^1.3.0",
+    "vite-plugin-singlefile": "^2.3.3",
     "vitest": "^3.2.7"
   },
   "main": "electron/main.cjs",

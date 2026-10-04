@@ -26,7 +26,6 @@ export function exportGameText(game: GameState): string {
   const lines: string[] = []
   lines.push(`人狼GM記録　ゲームID: ${game.meta.gameId}`)
   lines.push(`作成: ${game.meta.createdAt} / 更新: ${game.meta.updatedAt}`)
-  lines.push(`座席モード: ${game.meta.seatMode === 'fixed' ? '固定' : '非固定'}`)
   lines.push(`メモ: ${game.meta.memo || '(なし)'}`)
   lines.push('')
   lines.push('■ 参加者と実役職')

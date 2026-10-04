@@ -15,7 +15,6 @@ export function createInitialPlayers(count: number = 13): Player[] {
     registrationOrder: i + 1,
     isAi: false,
     actualRole: null,
-    seatNumber: i + 1,
     alive: true,
     death: null,
   }))
@@ -32,7 +31,6 @@ export function createInitialGameState(): GameState {
       updatedAt: now,
       ruleNote: '',
       memo: '',
-      seatMode: 'fixed',
       roleNames: { ...DEFAULT_ROLE_NAMES },
       playerCount: 13,
       defaultAiOrder: null,

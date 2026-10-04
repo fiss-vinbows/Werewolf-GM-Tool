@@ -1,15 +1,21 @@
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
 import { VitePWA } from 'vite-plugin-pwa'
+import { viteSingleFile } from 'vite-plugin-singlefile'
 
 // https://vite.dev/config/
 // --mode electron：PC用アプリ向けビルド。file相当の独自スキームで読み込むため相対パスにし、
 // サービスワーカー（PWA）は使わない。
+// --mode standalone：配布用zip向けビルド。全ファイルを1つのHTMLにまとめ、ダブルクリック（file://）で
+// 通信なしに開けるようにする。サービスワーカー（PWA）は使わない。
 export default defineConfig(({ mode }) => ({
-  base: mode === 'electron' ? './' : '/',
+  base: mode === 'electron' || mode === 'standalone' ? './' : '/',
+  build: mode === 'standalone' ? { outDir: 'dist-standalone' } : undefined,
   plugins: [
     react(),
+    mode === 'standalone' && viteSingleFile(),
     mode !== 'electron' &&
+      mode !== 'standalone' &&
       VitePWA({
         registerType: 'autoUpdate',
         // オフライン起動を優先するため、ビルド成果物一式をキャッシュ対象にする。
