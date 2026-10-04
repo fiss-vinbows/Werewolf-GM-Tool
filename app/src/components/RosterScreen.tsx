@@ -9,6 +9,9 @@ export function RosterScreen({ onApplied }: { onApplied?: () => void }) {
   const applyParticipantNames = useGameStore((s) => s.applyParticipantNames)
   const [text, setText] = useState('')
   const [message, setMessage] = useState<string | null>(null)
+  // 削除の画面内二段階確認（PWA環境ではwindow.confirm()が機能しないことがあるため）
+  const [pendingDelete, setPendingDelete] = useState<string | null>(null)
+  const [pendingClear, setPendingClear] = useState(false)
 
   const aiCount = game.players.filter((p) => p.isAi).length
   const presentCount = r.members.filter((m) => m.present).length
@@ -36,6 +39,9 @@ export function RosterScreen({ onApplied }: { onApplied?: () => void }) {
     <div className="screen">
       <section className="card">
         <h2>参加者名簿（{r.members.length}人・出席{presentCount}人）</h2>
+        <p>
+          現在の参加者数：<strong>出席{presentCount}人</strong>（名簿{r.members.length}人・欠席{r.members.length - presentCount}人）
+        </p>
         <p className="hint">名前を改行またはカンマ区切りで入力して追加します。欠席・途中退出の人は「出席」を外してください。名簿はゲーム記録とは別に保存され、新規ゲームでも消えません。</p>
         <div className="row">
           <textarea value={text} onChange={(e) => setText(e.target.value)} rows={3} style={{ flex: 1, minWidth: 200 }} placeholder={'山田\n佐藤\n鈴木'} />
@@ -72,7 +78,21 @@ export function RosterScreen({ onApplied }: { onApplied?: () => void }) {
                   <td>{countFor(m.id, 'played')}</td>
                   <td>{countFor(m.id)}</td>
                   <td>
-                    <button onClick={() => confirm(`${m.name} を名簿から削除しますか？`) && r.removeMember(m.id)}>削除</button>
+                    {pendingDelete === m.id ? (
+                      <div className="row">
+                        <button
+                          onClick={() => {
+                            r.removeMember(m.id)
+                            setPendingDelete(null)
+                          }}
+                        >
+                          本当に削除
+                        </button>
+                        <button onClick={() => setPendingDelete(null)}>やめる</button>
+                      </div>
+                    ) : (
+                      <button onClick={() => setPendingDelete(m.id)}>削除</button>
+                    )}
                   </td>
                 </tr>
               ))}
@@ -166,7 +186,22 @@ export function RosterScreen({ onApplied }: { onApplied?: () => void }) {
 
       {r.members.length > 0 && (
         <section className="card">
-          <button onClick={() => confirm('名簿と組み合わせをすべて削除しますか？') && r.clearAll()}>名簿と組み合わせをすべて削除</button>
+          {pendingClear ? (
+            <div className="row">
+              <span>名簿と組み合わせをすべて削除しますか？</span>
+              <button
+                onClick={() => {
+                  r.clearAll()
+                  setPendingClear(false)
+                }}
+              >
+                すべて削除する
+              </button>
+              <button onClick={() => setPendingClear(false)}>やめる</button>
+            </div>
+          ) : (
+            <button onClick={() => setPendingClear(true)}>名簿と組み合わせをすべて削除</button>
+          )}
         </section>
       )}
     </div>

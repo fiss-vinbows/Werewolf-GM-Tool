@@ -9,6 +9,7 @@ import {
 } from '../domain/types'
 import { validateRoleAssignment } from '../domain/roleValidation'
 import { RoleBoard } from './RoleBoard'
+import { useRosterStore } from '../store/rosterStore'
 
 // 「未確認を村人にする」は、それより前の段階（人狼→予言者→霊媒師→狩人→狂人）が
 // すべて確定してから使えるようにする（役職確認順の途中で村人に丸められないようにする）。
@@ -23,6 +24,12 @@ export function PlayersScreen({ onRegistered }: { onRegistered?: () => void }) {
   const completeRegistration = useGameStore((s) => s.completeRegistration)
   const setDay1WhiteNotice = useGameStore((s) => s.setDay1WhiteNotice)
 
+  const rosterMembers = useRosterStore((s) => s.members)
+  // 名簿から手動で選ぶときの候補（出席者を先に表示し、他の席で使用中の名前は除く）
+  const usedNames = new Set(game.players.map((p) => p.displayName))
+  const rosterOptions = [...rosterMembers].sort((a, b) => Number(b.present) - Number(a.present))
+  const humanCount = game.players.filter((p) => !p.isAi).length
+
   const unassignedCount = game.players.filter((p) => !p.actualRole).length
   const validation = validateRoleAssignment(game.players)
   const roleName = (r: RoleKey) => game.meta.roleNames[r] ?? DEFAULT_ROLE_NAMES[r]
@@ -35,6 +42,9 @@ export function PlayersScreen({ onRegistered }: { onRegistered?: () => void }) {
     <div className="screen">
       <section className="card">
         <h2>プレイヤー登録（{game.players.length}人）</h2>
+        <p>
+          現在の参加者数：<strong>{game.players.length}人</strong>（人間{humanCount}人・AI{game.players.length - humanCount}人）
+        </p>
         {game.phase === 'setup' ? (
           <label>
             参加人数
@@ -70,7 +80,26 @@ export function PlayersScreen({ onRegistered }: { onRegistered?: () => void }) {
               <tr key={p.id}>
                 <td>{p.registrationOrder}</td>
                 <td>
-                  <input value={p.displayName} onChange={(e) => setPlayerName(p.id, e.target.value)} />
+                  <div className="row">
+                    <input value={p.displayName} onChange={(e) => setPlayerName(p.id, e.target.value)} />
+                    {game.phase === 'setup' && rosterOptions.length > 0 && (
+                      <select
+                        value=""
+                        onChange={(e) => e.target.value && setPlayerName(p.id, e.target.value)}
+                        style={{ width: 130 }}
+                        aria-label="名簿から選ぶ"
+                      >
+                        <option value="">名簿から選ぶ</option>
+                        {rosterOptions.map((m) => (
+                          <option key={m.id} value={m.name} disabled={usedNames.has(m.name)}>
+                            {m.name}
+                            {m.present ? '' : '（欠席）'}
+                            {usedNames.has(m.name) ? '（登録済み）' : ''}
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                  </div>
                 </td>
                 <td>
                   <label className="toggle-switch">
