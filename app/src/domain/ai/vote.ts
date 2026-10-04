@@ -2,6 +2,7 @@
 import type { PlayerId, VoteRoundKind } from '../types'
 import {
   activeClaimants,
+  aiKnownSeerTruth,
   adoptedMediumResults,
   brokenPlayers,
   confirmedWhites,
@@ -25,7 +26,7 @@ import {
 import type { AiView } from './view'
 
 // 判断方式の版。方針を変えたら上げる（判断履歴の振り返り用）。
-export const AI_VOTE_POLICY_VERSION = 'vote-rule-12'
+export const AI_VOTE_POLICY_VERSION = 'vote-rule-13'
 
 // 0以上1未満の乱数を返す関数。テストでは固定値を注入する。
 export type Rng = () => number
@@ -144,6 +145,14 @@ function decideVillageSide(ctx: Ctx, margin: number): VoteDecisionResult {
     return pick(ctx, pickRandom(ctx, allowed), 'ランダム投票')
   }
 
+  // 2b. AI視点の偽の予言者（人外確定）。自分の確実な情報なので、先行票がなくても投票する（2026-10-05追加）。
+  const { fakes } = aiKnownSeerTruth(view)
+  const fakeTargets = allowed.filter((id) => fakes.has(id))
+  if (fakeTargets.length > 0) {
+    const t = pickMost(ctx, fakeTargets)
+    return pick(ctx, t, `AI視点で人外確定（${fakes.get(t)}）へ投票`)
+  }
+
   // 3. 初日から継続中のローラーと、解除済みの破綻者（7-4）。
   // 両方いれば当該ラウンドの個人別得票が多い人へ投票し、同数ならランダム。
   const released = releasedBrokenPlayers(view).filter((b) => allowed.includes(b.playerId))
@@ -162,7 +171,7 @@ function decideVillageSide(ctx: Ctx, margin: number): VoteDecisionResult {
   // 4. 予言者2CO以上の片黒。
   const seers = activeClaimants(view, 'seer')
   if (seers.length >= 2) {
-    const blacks = seerClaims(view).filter((c) => c.result === 'wolf' && isAlive(view, c.targetId) && !ownHumans.has(c.targetId))
+    const blacks = seerClaims(view).filter((c) => c.result === 'wolf' && isAlive(view, c.targetId) && !ownHumans.has(c.targetId) && !fakes.has(c.speakerId))
     if (margin > 0) {
       const targets = unique(blacks.map((c) => c.targetId)).filter((id) => allowed.includes(id))
       if (targets.length > 0) {

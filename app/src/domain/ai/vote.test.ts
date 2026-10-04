@@ -480,3 +480,58 @@ describe('C項目: 投票・ローラー', () => {
     expect(scores.get('p12')).toBe(20)
   })
 })
+
+describe('AI視点の真偽（2026-10-05、実ゲームの再現）', () => {
+  // 予言者CO：p11（真）・p12（偽）、霊媒師CO：p4、3日目に狩人CO：p8。AIはp13（村人）。
+  function base(day: number) {
+    const g = setup('p13', day)
+    co(g, 'p11', 'seer', 1)
+    claim(g, 'seer', 'p11', 'p2', 'not-wolf', 1)
+    co(g, 'p12', 'seer', 1)
+    claim(g, 'seer', 'p12', 'p4', 'not-wolf', 1)
+    co(g, 'p4', 'medium', 1)
+    kill(g, 'p10', 'execution', 1)
+    claim(g, 'seer', 'p11', 'p5', 'wolf', 2)
+    claim(g, 'seer', 'p12', 'p5', 'not-wolf', 2)
+    claim(g, 'medium', 'p4', 'p10', 'not-wolf', 1)
+    kill(g, 'p5', 'execution', 2)
+    kill(g, 'p4', 'wolf-attack', 2)
+    co(g, 'p8', 'bodyguard', 3)
+    claim(g, 'seer', 'p11', 'p8', 'not-wolf', 3)
+    claim(g, 'seer', 'p12', 'p13', 'wolf', 3) // 偽の予言者がAIに黒
+    return g
+  }
+  it('3日目：偽の予言者に投票し、真予言者とその白を候補から外し、余裕数に処刑済みの黒を数える', () => {
+    const g = base(3)
+    const r = round(g, 'normal', [['p12', 'p13'], ['p11', 'p12'], ['p8', 'p12'], ['p3', 'p13'], ['p1', 'p13']])
+    for (const x of [0, 0.3, 0.6, 0.99]) {
+      const res = decide(g, 'p13', r, seq(x))
+      expect(res.targetId).toBe('p12')
+      const reasons = res.reasons.join()
+      expect(reasons).toContain('余裕1')
+      expect(reasons).toContain('プレイヤー11（AI視点の真予言者')
+      expect(reasons).toContain('プレイヤー2（AI視点の真予言者プレイヤー11の白）')
+      expect(reasons).toContain('プレイヤー8（AI視点の真予言者プレイヤー11の白）')
+    }
+  })
+  it('4日目：真予言者の黒を確定人狼として投票する（余裕1）', () => {
+    const g = base(4)
+    kill(g, 'p12', 'execution', 3)
+    kill(g, 'p8', 'wolf-attack', 3)
+    claim(g, 'seer', 'p11', 'p3', 'wolf', 4)
+    const r = round(g, 'normal', [['p11', 'p3'], ['p3', 'p11'], ['p7', 'p3'], ['p1', 'p3']])
+    for (const x of [0, 0.5, 0.99]) {
+      const res = decide(g, 'p13', r, seq(x))
+      expect(res.targetId).toBe('p3')
+      expect(res.reasons.join()).toContain('余裕1')
+    }
+  })
+  it('狩人CO者がGで発表した護衛成功先は、GMの護衛成功通知があれば投票対象外', () => {
+    const g = setup('p13', 3)
+    co(g, 'p8', 'bodyguard', 2)
+    g.nightRecords.push({ day: 1, seer: null, seerSkipped: false, medium: null, mediumSkipped: false, bodyguard: { day: 1, targetId: 'p9', success: true }, guardSkipped: false, wolf: null })
+    g.resultClaims.push({ id: 'cg', eventOrder: ++order, coId: '', kind: 'guard', speakerId: 'p8', targetId: 'p9', targetDay: 1, announcedDay: 3, result: 'guard-success', recordedAt: '', retracted: false })
+    const r = round(g, 'normal', [['p10', 'p9']])
+    expect(decide(g, 'p13', r).reasons.join()).toContain('プレイヤー9（狩人COの護衛成功先（G））')
+  })
+})

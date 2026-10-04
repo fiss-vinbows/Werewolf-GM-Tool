@@ -21,8 +21,8 @@ const CO_STATUS_LABELS: Record<string, string> = {
 export function exportGameText(game: GameState): string {
   const roleName = (role: string | null) => (role ? game.meta.roleNames[role as keyof typeof game.meta.roleNames] ?? role : '未確認')
   // 人狼判定の結果表記は設定タブの「人狼／人間の表示方法」に倣う（英語のまま出さない）。
-  const resultText = (result: 'wolf' | 'not-wolf' | 'guarded') =>
-    result === 'guarded' ? '護衛成功' : formatWolfResult(result, game.meta.resultLabelStyle)
+  const resultText = (result: 'wolf' | 'not-wolf' | 'guarded' | 'guard-success') =>
+    result === 'guarded' ? '護衛' : result === 'guard-success' ? '護衛成功' : formatWolfResult(result, game.meta.resultLabelStyle)
   const lines: string[] = []
   lines.push(`人狼GM記録　ゲームID: ${game.meta.gameId}`)
   lines.push(`作成: ${game.meta.createdAt} / 更新: ${game.meta.updatedAt}`)

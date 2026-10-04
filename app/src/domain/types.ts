@@ -120,7 +120,8 @@ export type ResultClaim = {
   targetId: PlayerId
   targetDay: number // 結果の対象日
   announcedDay: number // 公表した日
-  result: 'wolf' | 'not-wolf' | 'guarded' // 護衛主張はguardedのみ使用
+  // 護衛主張は guarded（○：護衛した先）と guard-success（G：護衛に成功した先）を使う。
+  result: 'wolf' | 'not-wolf' | 'guarded' | 'guard-success'
   recordedAt: string
   retracted: boolean
   // プレイヤーが撤回・訂正した時点（7-4）。旧データにはない。

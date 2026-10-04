@@ -13,7 +13,7 @@ type JudgeKind = 'seer' | 'medium' | 'bodyguard'
 
 type Dragging =
   | { kind: 'co'; role: RoleKey }
-  | { kind: 'judge'; speakerId: PlayerId; judgeKind: JudgeKind; result: 'wolf' | 'not-wolf' | 'guarded' }
+  | { kind: 'judge'; speakerId: PlayerId; judgeKind: JudgeKind; result: 'wolf' | 'not-wolf' | 'guarded' | 'guard-success' }
 
 type MenuTarget = { kind: 'co' | 'claim'; id: string; x: number; y: number; canRetract: boolean }
 
@@ -82,10 +82,11 @@ export function CoBoard() {
         if (drag.judgeKind === 'medium') {
           // 霊媒は処刑されたプレイヤーだけに色を付けられる（襲撃で死亡した人は対象外）。
           if (targetPlayer.alive || targetPlayer.death?.trueCause !== 'execution') return
-        } else {
-          // 予言・護衛先の主張は生存者のみを対象にする。
+        } else if (drag.judgeKind === 'seer') {
+          // 予言結果の主張は生存者のみを対象にする。
           if (!targetPlayer.alive) return
         }
+        // 護衛先の履歴は、すでに死亡したプレイヤーにも記録できる（過去の夜の護衛先を後から発表するため）。
         addJudgmentByDrag(drag.speakerId, playerId, drag.result, drag.judgeKind)
       }
     }
@@ -134,7 +135,16 @@ export function CoBoard() {
           <span className="player-name-label">
             <PlayerName player={p} />
           </span>
-          {twoIconKind && interactive ? (
+          {oneIconKind && interactive ? (
+            <span
+              className="judge-dot judge-dot-guard-success"
+              style={{ background: ownRoleColor }}
+              title="Gをドラッグして護衛に成功したと主張する対象を記録（丸の背景色はこの人の真の役職）"
+              onPointerDown={(e) => startDrag(e, { kind: 'judge', speakerId: p.id, judgeKind: 'bodyguard', result: 'guard-success' }, 'G', ownRoleColor)}
+            >
+              G
+            </span>
+          ) : twoIconKind && interactive ? (
             <span
               className="judge-dot judge-dot-black"
               style={{ borderColor: ownRoleColor }}
@@ -167,7 +177,7 @@ export function CoBoard() {
             {judgments.map((j) => {
               const speaker = game.players.find((pl) => pl.id === j.speakerId)
               const speakerColor = ROLE_COLORS[speaker?.actualRole ?? 'villager']
-              const kindLabel = roleName(j.kind === 'guard' ? 'bodyguard' : (j.kind as RoleKey))
+              const kindLabel = roleName(j.kind === 'guard' ? 'bodyguard' : (j.kind as RoleKey)) + (j.result === 'guard-success' ? '（護衛成功）' : j.result === 'guarded' ? '（護衛）' : '')
               const isBinary = j.kind !== 'guard'
               const dotClass = isBinary ? (j.result === 'wolf' ? 'judge-history-dot judge-dot-black' : 'judge-history-dot judge-dot-white') : 'judge-history-dot'
               return (
@@ -182,7 +192,7 @@ export function CoBoard() {
                     setMenu({ kind: 'claim', id: j.id, x: rect.left, y: rect.bottom, canRetract: !!speaker && canSpeak(game, speaker.id) })
                   }}
                 >
-                  {!isBinary && '○'}
+                  {!isBinary && (j.result === 'guard-success' ? 'G' : '○')}
                 </span>
               )
             })}
@@ -196,8 +206,8 @@ export function CoBoard() {
     <div className="co-board">
       <p className="hint">
         役職ラベルをプレイヤー名へドラッグするとCOを記録します。同じ人へ別の役職を重ねるとスライドとして記録します。
-        予言者・霊媒師CO した人は名前の両端に白丸／黒丸、狩人CO した人は左側に○が出るので、対象者へドラッグすると判定・護衛順を記録できます（記録した順番を対象日として扱います）。
-        予言・護衛は生存者のみ、霊媒は処刑されたプレイヤーのみが対象です。COの新規記録は生存者にのみ行え、死亡したプレイヤーは撤回もできません。
+        予言者・霊媒師CO した人は名前の両端に白丸／黒丸、狩人CO した人は左側に○（護衛先）・右側にG（護衛成功した先）が出るので、対象者へドラッグすると判定・護衛順を記録できます（記録した順番を対象日として扱います）。
+        予言は生存者のみ、霊媒は処刑されたプレイヤーのみが対象です。護衛先（○・G）は死亡したプレイヤーにも記録できます。COの新規記録は生存者にのみ行え、死亡したプレイヤーは撤回もできません。
       </p>
 
       <div className="co-source-row">

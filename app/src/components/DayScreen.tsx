@@ -214,7 +214,7 @@ export function DayScreen({ onGoToVote }: { onGoToVote?: () => void }) {
               .map((c) => {
                 const speaker = game.players.find((p) => p.id === c.speakerId)
                 const target = game.players.find((p) => p.id === c.targetId)
-                const resultText = c.result === 'guarded' ? '護衛成功' : formatWolfResult(c.result, game.meta.resultLabelStyle)
+                const resultText = c.result === 'guarded' ? '護衛（○）' : c.result === 'guard-success' ? '護衛成功（G）' : formatWolfResult(c.result, game.meta.resultLabelStyle)
                 const content = `${kindLabel(c.kind)}：${speaker?.displayName}→${target?.displayName}：${resultText}`
                 return (
                   <tr key={c.id}>

@@ -46,14 +46,14 @@ export type SeerClaim = { speakerId: PlayerId; targetId: PlayerId; result: 'wolf
 export function seerClaims(view: AiView): SeerClaim[] {
   const seers = new Set(activeClaimants(view, 'seer'))
   return view.resultClaims
-    .filter((c) => c.kind === 'seer' && seers.has(c.speakerId) && c.result !== 'guarded')
+    .filter((c) => c.kind === 'seer' && seers.has(c.speakerId) && (c.result === 'wolf' || c.result === 'not-wolf'))
     .map((c) => ({ speakerId: c.speakerId, targetId: c.targetId, result: c.result as 'wolf' | 'not-wolf', targetDay: c.targetDay, eventOrder: c.eventOrder }))
 }
 
 export function mediumClaims(view: AiView): SeerClaim[] {
   const mediums = new Set(activeClaimants(view, 'medium'))
   return view.resultClaims
-    .filter((c) => c.kind === 'medium' && mediums.has(c.speakerId) && c.result !== 'guarded')
+    .filter((c) => c.kind === 'medium' && mediums.has(c.speakerId) && (c.result === 'wolf' || c.result === 'not-wolf'))
     .map((c) => ({ speakerId: c.speakerId, targetId: c.targetId, result: c.result as 'wolf' | 'not-wolf', targetDay: c.targetDay, eventOrder: c.eventOrder }))
 }
 
@@ -63,9 +63,28 @@ export function confirmedMedium(view: AiView): PlayerId | null {
   return null
 }
 
+// 確定予言者：初日からの単独CO予言者、またはAI視点で真と分かった予言者（aiKnownSeerTruth）。
 export function confirmedSeer(view: AiView): PlayerId | null {
   for (const [id, role] of singleCoHolders(view)) if (role === 'seer') return id
-  return null
+  return aiKnownSeerTruth(view).trueSeer
+}
+
+// AI自身の確実な情報から分かる予言者CO者の真偽（2026-10-05追加）。
+// 村人陣営AIが「人間と知っている人」（自分自身・自分の予言の白）に黒を出した予言者CO者は、AI視点で偽物（人外）。
+// 予言者COが2人以上いて、偽物を除くと1人だけ残る場合、その人をAI視点の真予言者とする。
+// これはAI本人だけの推論であり、村全体の破綻（7-2）とは区別する。
+export function aiKnownSeerTruth(view: AiView): { trueSeer: PlayerId | null; fakes: Map<PlayerId, string> } {
+  const fakes = new Map<PlayerId, string>()
+  if (view.selfRole === 'wolf' || view.selfRole === 'madman') return { trueSeer: null, fakes }
+  const humans = new Set(ownKnownHumans(view))
+  const seers = activeClaimants(view, 'seer').filter((id) => id !== view.selfId)
+  for (const c of seerClaims(view)) {
+    if (c.speakerId === view.selfId || c.result !== 'wolf' || !humans.has(c.targetId) || fakes.has(c.speakerId)) continue
+    fakes.set(c.speakerId, c.targetId === view.selfId ? '自分（人間）に黒を出した偽の予言者' : `自分の予言で白の${nameOf(view, c.targetId)}に黒を出した偽の予言者`)
+  }
+  const remaining = seers.filter((id) => !fakes.has(id))
+  const trueSeer = view.selfRole !== 'seer' && seers.length >= 2 && fakes.size > 0 && remaining.length === 1 ? remaining[0] : null
+  return { trueSeer, fakes }
 }
 
 export type Breakdown = { playerId: PlayerId; reason: string }
@@ -116,6 +135,12 @@ export function confirmedWhites(view: AiView): Map<PlayerId, string> {
     // 初日は「暫定白」。投票対象外という扱いは同じ（方針A）。
     result.set(id, view.day <= 1 ? `初日単独${roleLabel(role)}CO（暫定白）` : `初日から単独${roleLabel(role)}CO（確定白）`)
   }
+  // AI視点の真予言者本人と、その白（2026-10-05追加）。
+  const { trueSeer } = aiKnownSeerTruth(view)
+  if (trueSeer) {
+    result.set(trueSeer, 'AI視点の真予言者（対抗が自分に黒を出した偽物）')
+    for (const c of seerClaims(view)) if (c.speakerId === trueSeer && c.result === 'not-wolf' && !result.has(c.targetId)) result.set(c.targetId, `AI視点の真予言者${nameOf(view, trueSeer)}の白`)
+  }
   const seers = activeClaimants(view, 'seer')
   if (seers.length >= 2) {
     const claims = seerClaims(view)
@@ -132,6 +157,15 @@ export function confirmedWhites(view: AiView): Map<PlayerId, string> {
     const targets = unique(claims.map((c) => c.targetId))
     if (targets.length === 1) result.set(targets[0], `${night}日目夜の護衛成功先`)
   }
+  // 狩人CO者がG（護衛成功した先）として発表した人。GMから護衛成功の通知があった場合だけ白扱いにし、
+  // 狩人CO者が複数いてGの主張が食い違う場合は保留する（2026-10-05追加）。
+  if (view.guardSuccessNights.length > 0) {
+    const gClaims = view.resultClaims.filter((c) => c.kind === 'guard' && c.result === 'guard-success' && guards.includes(c.speakerId))
+    const bySpeaker = new Map<PlayerId, string>()
+    for (const c of gClaims) bySpeaker.set(c.speakerId, [...new Set([...(bySpeaker.get(c.speakerId)?.split(',') ?? []), c.targetId])].sort().join(','))
+    const sets = unique([...bySpeaker.values()])
+    if (sets.length === 1) for (const id of sets[0].split(',')) if (!result.has(id)) result.set(id, '狩人COの護衛成功先（G）')
+  }
   return result
 }
 
@@ -141,6 +175,8 @@ export function executionMargin(view: AiView): { margin: number; remainingEvil: 
   const executed = view.players.filter((p) => p.death?.cause === 'execution').map((p) => p.id)
   const cMedium = confirmedMedium(view)
   const broken = new Set(brokenPlayers(view).map((b) => b.playerId))
+  const cWolves = confirmedWolves(view)
+  const { fakes } = aiKnownSeerTruth(view)
   let confirmedEvilDead = 0
   for (const id of executed) {
     const own = view.ownMediumResults.find((r) => r.targetId === id)
@@ -150,8 +186,10 @@ export function executionMargin(view: AiView): { margin: number; remainingEvil: 
     const forX = mediumClaims(view).filter((c) => c.targetId === id)
     const allMediumsBlack = mediums.length > 0 && mediums.every((m) => forX.some((c) => c.speakerId === m && c.result === 'wolf')) && forX.every((c) => c.result === 'wolf')
     const isWolf = own ? own.result === 'wolf' : publicMedium ? publicMedium.result === 'wolf' : allMediumsBlack
+    // 確定予言者（AI視点の真予言者を含む）の黒で処刑された人、AI視点の偽物の処刑も人外の処刑として数える（2026-10-05追加）。
+    const knownEvil = cWolves.has(id) || fakes.has(id)
     // 霊媒結果と破綻を二重加算しない。
-    if (isWolf || broken.has(id)) confirmedEvilDead += 1
+    if (isWolf || broken.has(id) || knownEvil) confirmedEvilDead += 1
   }
   const remainingEvil = Math.max(0, MAX_EVIL - confirmedEvilDead)
   const base = Math.floor((alive - 1) / 2)

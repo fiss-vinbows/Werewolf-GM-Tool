@@ -142,7 +142,7 @@ type GameStore = {
     targetId: PlayerId
     targetDay: number
     announcedDay: number
-    result: 'wolf' | 'not-wolf' | 'guarded'
+    result: 'wolf' | 'not-wolf' | 'guarded' | 'guard-success'
   }) => void
   retractResultClaim: (id: string) => void
   eraseResultClaim: (id: string) => void
@@ -150,7 +150,7 @@ type GameStore = {
   addJudgmentByDrag: (
     speakerId: PlayerId,
     targetId: PlayerId,
-    result: 'wolf' | 'not-wolf' | 'guarded',
+    result: 'wolf' | 'not-wolf' | 'guarded' | 'guard-success',
     kind: 'seer' | 'medium' | 'bodyguard',
   ) => void
 
