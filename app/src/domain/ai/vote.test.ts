@@ -282,10 +282,11 @@ describe('7-4: 破綻の解除', () => {
     const g = setup('p8', 2)
     released(g)
     const r = round(g, 'normal', [['p11', 'p9']])
-    const res = decide(g, 'p8', r)
+    const res = decide(g, 'p8', r, seq(0.5))
     expect(res.reasons.join()).toContain('解除済みの破綻者')
     expect(res.reasons.join()).not.toContain('破綻者へ投票')
-    expect(res.targetId).toBe('p9')
+    // ローラーがなければ先行票に重ねず、重み付きランダム（選ばれやすさ2倍）で選ぶ。
+    expect(res.reasons.join()).not.toContain('重ねる')
   })
   it('撤回されていなければ現在の破綻者のまま', () => {
     const g = setup('p8', 2)

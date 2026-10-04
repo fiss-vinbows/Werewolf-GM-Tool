@@ -25,7 +25,7 @@ import {
 import type { AiView } from './view'
 
 // 判断方式の版。方針を変えたら上げる（判断履歴の振り返り用）。
-export const AI_VOTE_POLICY_VERSION = 'vote-rule-6'
+export const AI_VOTE_POLICY_VERSION = 'vote-rule-7'
 
 // 0以上1未満の乱数を返す関数。テストでは固定値を注入する。
 export type Rng = () => number
@@ -144,9 +144,7 @@ function decideVillageSide(ctx: Ctx, margin: number): VoteDecisionResult {
     const t = pickMost(ctx, pool)
     return pick(ctx, t, releasedIds.length > 0 ? 'ローラー対象と解除済みの破綻者のうち票の多い人へ重ねる（7-4）' : 'ローラー対象のうち票の多い人へ重ねる')
   }
-  // ローラーがない場合の優先度は要相談。暫定として、解除済みの破綻者に先行票があれば重ねる。
-  const releasedWithVotes = releasedIds.filter((id) => (ctx.counts.get(id) ?? 0) > 0)
-  if (releasedWithVotes.length > 0) return pick(ctx, pickMost(ctx, releasedWithVotes), '解除済みの破綻者に先行票があるため重ねる（7-4・暫定）')
+  // ローラーがない場合は先行票に重ねず、下の重み付きランダムで選ばれやすさを2倍にする（2026-10-04確定）。
 
   // 4. 予言者2CO以上の片黒。
   const seers = activeClaimants(view, 'seer')
@@ -185,7 +183,7 @@ function decideVillageSide(ctx: Ctx, margin: number): VoteDecisionResult {
   const scores = villageScores(view, adoptedMediumResults(view, overrides))
   const scored = allowed.filter((id) => scores.has(id))
   if (scored.length > 0) reasons.push(`評価点: ${allowed.map((id) => `${nameOf(view, id)} ${scores.get(id) ?? 0}`).join('、')}`)
-  // 解除済みの破綻者は、村を混乱させた履歴として選ばれやすさを2倍にする（7-4・暫定の強さ）。
+  // 解除済みの破綻者は、村を混乱させた履歴として選ばれやすさを2倍にする（7-4、2026-10-04確定）。
   const releasedSet = new Set(releasedIds)
   const t = weightedPick(ctx, allowed, (id) => Math.pow(2, -(scores.get(id) ?? 0) / 20) * (releasedSet.has(id) ? 2 : 1))
   return pick(ctx, t, scored.length > 0 ? '評価点による重み付きランダム' : 'ランダム投票')
