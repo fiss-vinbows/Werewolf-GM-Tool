@@ -574,6 +574,7 @@ export const useGameStore = create<GameStore>()(
               recordedAt: new Date().toISOString(),
               order: r.nextVoteOrder,
               globalOrder: nextVoteEventOrder(g),
+              afterEventOrder: g.eventCounter,
             }
             g.voteEventCounter += 1
             return {

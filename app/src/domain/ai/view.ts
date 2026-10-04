@@ -11,7 +11,7 @@ export type PublicPlayer = {
   death: { day: number; cause: 'execution' | 'attack' | 'other' } | null
 }
 
-export type PublicVote = { voterId: PlayerId; targetId: PlayerId; order: number }
+export type PublicVote = { voterId: PlayerId; targetId: PlayerId; order: number; afterEventOrder?: number }
 
 export type PublicVoteRound = {
   id: string
@@ -88,7 +88,7 @@ export function buildAiView(game: GameState, selfId: PlayerId, opts: AiViewOptio
         day: r.day,
         kind: r.kind,
         candidateIds: [...r.candidateIds],
-        votes: hideVotes ? [] : r.votes.map((v) => ({ voterId: v.voterId, targetId: v.targetId, order: v.order })),
+        votes: hideVotes ? [] : r.votes.map((v) => ({ voterId: v.voterId, targetId: v.targetId, order: v.order, afterEventOrder: v.afterEventOrder })),
         executedId: r.resolved ? r.executedId : null,
         resolved: r.resolved,
       }

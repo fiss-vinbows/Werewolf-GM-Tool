@@ -249,6 +249,9 @@ export function villageScores(view: AiView, adopted: Map<PlayerId, 'wolf' | 'not
     for (const v of round.votes) {
       const res = adopted.get(v.targetId)
       if (!res) continue // 未判定の投票先は保留
+      // 投票時点で公開の破綻者だった人への投票は0点。後で人狼と分かっても加点しない（5-4-4a・C-12）。
+      // 解除後の票は通常どおり評価する。
+      if (brokenAtVote(view, round.day, v.afterEventOrder).has(v.targetId)) continue
       // 狂人COした人（霊媒結果は人間）への投票は0点。狂人は人狼陣営なので、投票者を疑う理由にならない（C-13、2026-10-04確定）。
       if (res === 'not-wolf' && madmen.has(v.targetId)) continue
       const delta = round.kind === 'normal' ? (res === 'wolf' ? 20 : -10) : res === 'wolf' ? 5 : -3
@@ -326,6 +329,35 @@ export function followeeVote(view: AiView, followeeId: PlayerId, roundId: string
   return ref?.votes.find((v) => v.voterId === followeeId)?.targetId ?? null
 }
 
+// COと公表結果の開始・撤回の時点（通し番号 → 日）。
+function eventPoints(view: AiView): Map<number, number> {
+  const points = new Map<number, number>()
+  for (const c of view.coRecords) {
+    points.set(c.eventOrder, c.day)
+    if (c.ended) points.set(c.ended.order, c.ended.day)
+  }
+  for (const c of [...view.resultClaims, ...view.retractedResultClaims]) {
+    points.set(c.eventOrder, c.announcedDay)
+    if (c.retractedAt) points.set(c.retractedAt.order, c.retractedAt.day)
+  }
+  return points
+}
+
+// 時点t（通し番号）・日dayの公表内容を再現したビュー。
+function snapshotAt(view: AiView, t: number, day: number): AiView {
+  const allClaims = [...view.resultClaims, ...view.retractedResultClaims]
+  return {
+    ...view,
+    day,
+    // 襲撃死は翌朝に公開されるため、その時点の日より前の死亡だけを見せる。
+    players: view.players.map((p) => (p.death && p.death.day >= day ? { ...p, alive: true, death: null } : p)),
+    coRecords: view.coRecords
+      .filter((c) => c.eventOrder <= t && !(c.ended && c.ended.order <= t))
+      .map((c) => ({ ...c, status: 'active' as const })),
+    resultClaims: allClaims.filter((c) => c.eventOrder <= t && !(c.retractedAt && c.retractedAt.order <= t)),
+  }
+}
+
 // 破綻が解除された人（7-4）。過去のある時点の公表内容で破綻条件に当たり、
 // 本人の撤回・訂正・スライドによって現在は当たらなくなった生存者。村を混乱させた履歴として扱う。
 // 他人の撤回（例：確定霊媒師が白を撤回）で条件から外れた場合は対象外（2026-10-04確定）。
@@ -333,28 +365,9 @@ export function followeeVote(view: AiView, followeeId: PlayerId, roundId: string
 // 撤回時点の記録がない旧データは、撤回されずに残っていたものとして扱う（従来の近似）。
 export function releasedBrokenPlayers(view: AiView): Breakdown[] {
   const current = new Set(brokenPlayers(view).map((b) => b.playerId))
-  const allClaims = [...view.resultClaims, ...view.retractedResultClaims]
-  const points = new Map<number, number>() // 時点の通し番号 → 日
-  for (const c of view.coRecords) {
-    points.set(c.eventOrder, c.day)
-    if (c.ended) points.set(c.ended.order, c.ended.day)
-  }
-  for (const c of allClaims) {
-    points.set(c.eventOrder, c.announcedDay)
-    if (c.retractedAt) points.set(c.retractedAt.order, c.retractedAt.day)
-  }
   const result = new Map<PlayerId, Breakdown>()
-  for (const [t, day] of [...points.entries()].sort((a, b) => a[0] - b[0])) {
-    const snapshot: AiView = {
-      ...view,
-      day,
-      // 襲撃死は翌朝に公開されるため、その時点の日より前の死亡だけを見せる。
-      players: view.players.map((p) => (p.death && p.death.day >= day ? { ...p, alive: true, death: null } : p)),
-      coRecords: view.coRecords
-        .filter((c) => c.eventOrder <= t && !(c.ended && c.ended.order <= t))
-        .map((c) => ({ ...c, status: 'active' as const })),
-      resultClaims: allClaims.filter((c) => c.eventOrder <= t && !(c.retractedAt && c.retractedAt.order <= t)),
-    }
+  for (const [t, day] of [...eventPoints(view).entries()].sort((a, b) => a[0] - b[0])) {
+    const snapshot = snapshotAt(view, t, day)
     for (const b of brokenPlayers(snapshot)) {
       const id = b.playerId
       if (current.has(id) || result.has(id) || !isAlive(view, id)) continue
@@ -374,4 +387,15 @@ export function releasedBrokenPlayers(view: AiView): Breakdown[] {
     }
   }
   return [...result.values()]
+}
+
+// 投票時点で公開の破綻者だった人。afterEventOrderがない旧データは、前日までの公表内容で判定する。
+function brokenAtVote(view: AiView, day: number, afterEventOrder: number | undefined): Set<PlayerId> {
+  let t = afterEventOrder
+  if (t === undefined) {
+    const before = [...eventPoints(view).entries()].filter(([, d]) => d < day).map(([o]) => o)
+    if (before.length === 0) return new Set()
+    t = Math.max(...before)
+  }
+  return new Set(brokenPlayers(snapshotAt(view, t, day)).map((b) => b.playerId))
 }

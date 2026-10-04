@@ -139,6 +139,8 @@ export type Vote = {
   order: number
   // ゲーム全体を通しての投票順（ラウンドをまたいで単調増加）。
   globalOrder: number
+  // 投票時点で記録済みだったCO・公表結果の通し番号の最大値（その時点の公表内容の再現用、5-4-4a）。旧データにはない。
+  afterEventOrder?: number
 }
 
 export type VoteRound = {

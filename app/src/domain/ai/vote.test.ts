@@ -3,6 +3,7 @@ import { createInitialGameState } from '../factory'
 import type { CoRecord, GameState, PlayerId, ResultClaim, RoleKey, Vote, VoteRound } from '../types'
 import { buildAiView } from './view'
 import { centralVoteOrder, decideVote } from './vote'
+import { adoptedMediumResults, villageScores } from './analysis'
 
 // 13人：p1〜p3 人狼、p4 狂人、p5 予言者、p6 霊媒師、p7 狩人、p8〜p13 村人
 const ROLES: RoleKey[] = ['wolf', 'wolf', 'wolf', 'madman', 'seer', 'medium', 'bodyguard', 'villager', 'villager', 'villager', 'villager', 'villager', 'villager']
@@ -458,5 +459,24 @@ describe('C項目: 投票・ローラー', () => {
     // 対照：狂人COを撤回させると通常どおり－10になる。
     g.coRecords.find((c) => c.playerId === 'p4')!.status = 'retracted'
     expect(decide(g, 'p8', round(g, 'normal', []), seq(0.5)).reasons.join()).toContain('プレイヤー9 -10')
+  })
+  it('C-12: 投票時点で破綻していた人への票は、後で人狼と分かっても0点（破綻前の票は通常どおり）', () => {
+    const g = setup('p8', 3)
+    co(g, 'p5', 'seer', 1)
+    co(g, 'p9', 'seer', 1)
+    co(g, 'p6', 'medium', 1)
+    const before = order
+    claim(g, 'seer', 'p9', 'p10', 'wolf', 1) // 初日の黒（破綻条件E）
+    const after = order
+    const d2 = round(g, 'normal', [['p11', 'p9'], ['p12', 'p9']])
+    d2.day = 2; d2.resolved = true; d2.executedId = 'p9'
+    d2.votes[0].afterEventOrder = after // 破綻の公開後の票
+    d2.votes[1].afterEventOrder = before // 破綻の公開前の票（比較用）
+    kill(g, 'p9', 'execution', 2)
+    claim(g, 'medium', 'p6', 'p9', 'wolf', 2)
+    const view = buildAiView(g, 'p8')
+    const scores = villageScores(view, adoptedMediumResults(view))
+    expect(scores.get('p11') ?? 0).toBe(0)
+    expect(scores.get('p12')).toBe(20)
   })
 })
