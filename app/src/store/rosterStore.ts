@@ -12,6 +12,7 @@ type RosterStore = {
   addMembers: (text: string) => void
   renameMember: (id: string, name: string) => void
   removeMember: (id: string) => void
+  removeMembers: (ids: string[]) => void
   togglePresent: (id: string) => void
   setPlannedGames: (n: number) => void
   setSeats: (n: number) => void
@@ -39,11 +40,15 @@ export const useRosterStore = create<RosterStore>()(
         set((s) => ({ members: [...s.members, ...unique.map((name) => ({ id: newEventId('m'), name, present: true }))] }))
       },
       renameMember: (id, name) => set((s) => ({ members: s.members.map((m) => (m.id === id ? { ...m, name } : m)) })),
-      removeMember: (id) =>
+      removeMember: (id) => get().removeMembers([id]),
+      // 一括削除。未実施の試合からも外す（終了済みの試合の記録は残す）。
+      removeMembers: (ids) => {
+        const del = new Set(ids)
         set((s) => ({
-          members: s.members.filter((m) => m.id !== id),
-          games: s.games.map((g) => (g.status === 'planned' ? { ...g, participantIds: g.participantIds.filter((x) => x !== id) } : g)),
-        })),
+          members: s.members.filter((m) => !del.has(m.id)),
+          games: s.games.map((g) => (g.status === 'planned' ? { ...g, participantIds: g.participantIds.filter((x) => !del.has(x)) } : g)),
+        }))
+      },
       togglePresent: (id) => set((s) => ({ members: s.members.map((m) => (m.id === id ? { ...m, present: !m.present } : m)) })),
       setPlannedGames: (n) => set({ plannedGames: Math.max(1, Math.min(20, n)) }),
       setSeats: (n) => set({ seats: Math.max(1, Math.min(14, n)) }),

@@ -12,6 +12,18 @@ export function RosterScreen({ onApplied }: { onApplied?: () => void }) {
   // 削除の画面内二段階確認（PWA環境ではwindow.confirm()が機能しないことがあるため）
   const [pendingDelete, setPendingDelete] = useState<string | null>(null)
   const [pendingClear, setPendingClear] = useState(false)
+  // 一括削除用のチェック
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [pendingBulk, setPendingBulk] = useState(false)
+  const selectedIds = r.members.filter((m) => selected.has(m.id)).map((m) => m.id)
+  const allSelected = r.members.length > 0 && selectedIds.length === r.members.length
+  const toggleSelect = (id: string) =>
+    setSelected((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
 
   const aiCount = game.players.filter((p) => p.isAi).length
   const presentCount = r.members.filter((m) => m.present).length
@@ -56,9 +68,41 @@ export function RosterScreen({ onApplied }: { onApplied?: () => void }) {
           </button>
         </div>
         {r.members.length > 0 && (
+          <div className="row" style={{ marginTop: 8 }}>
+            {pendingBulk ? (
+              <>
+                <span>選択した{selectedIds.length}人を名簿から削除しますか？</span>
+                <button
+                  onClick={() => {
+                    r.removeMembers(selectedIds)
+                    setSelected(new Set())
+                    setPendingBulk(false)
+                  }}
+                >
+                  削除する
+                </button>
+                <button onClick={() => setPendingBulk(false)}>やめる</button>
+              </>
+            ) : (
+              <button disabled={selectedIds.length === 0} onClick={() => setPendingBulk(true)}>
+                選択した{selectedIds.length}人を一括削除
+              </button>
+            )}
+          </div>
+        )}
+        {r.members.length > 0 && (
           <table>
             <thead>
               <tr>
+                <th>
+                  <input
+                    type="checkbox"
+                    aria-label="すべて選択"
+                    title="すべて選択／解除"
+                    checked={allSelected}
+                    onChange={() => setSelected(allSelected ? new Set() : new Set(r.members.map((m) => m.id)))}
+                  />
+                </th>
                 <th>出席</th>
                 <th>名前</th>
                 <th>参加済み</th>
@@ -69,6 +113,9 @@ export function RosterScreen({ onApplied }: { onApplied?: () => void }) {
             <tbody>
               {r.members.map((m) => (
                 <tr key={m.id} style={{ opacity: m.present ? 1 : 0.5 }}>
+                  <td>
+                    <input type="checkbox" aria-label={`${m.name}を選択`} checked={selected.has(m.id)} onChange={() => toggleSelect(m.id)} />
+                  </td>
                   <td>
                     <input type="checkbox" checked={m.present} onChange={() => r.togglePresent(m.id)} />
                   </td>
