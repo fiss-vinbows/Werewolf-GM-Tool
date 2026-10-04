@@ -25,7 +25,7 @@ import {
 import type { AiView } from './view'
 
 // 判断方式の版。方針を変えたら上げる（判断履歴の振り返り用）。
-export const AI_VOTE_POLICY_VERSION = 'vote-rule-8'
+export const AI_VOTE_POLICY_VERSION = 'vote-rule-9'
 
 // 0以上1未満の乱数を返す関数。テストでは固定値を注入する。
 export type Rng = () => number
@@ -37,6 +37,16 @@ export type VoteDecisionResult = {
 
 export type VoteRoundInput = { id: string; kind: VoteRoundKind; candidateIds: PlayerId[] }
 
+function previousRoundOfDay(view: AiView, roundId: string) {
+  const idx = view.voteRounds.findIndex((r) => r.id === roundId)
+  if (idx < 0) return undefined
+  const day = view.voteRounds[idx].day
+  return view.voteRounds
+    .slice(0, idx)
+    .reverse()
+    .find((r) => r.day === day)
+}
+
 export function decideVote(view: AiView, round: VoteRoundInput, rng: Rng = Math.random): VoteDecisionResult {
   const reasons: string[] = []
   const legal =
@@ -44,7 +54,10 @@ export function decideVote(view: AiView, round: VoteRoundInput, rng: Rng = Math.
       ? view.players.filter((p) => p.alive && p.id !== view.selfId).map((p) => p.id)
       : round.candidateIds.filter((id) => id !== view.selfId && isAlive(view, id))
   if (legal.length === 0) throw new Error('投票可能な対象がいません')
-  const counts = voteCounts(view.voteRounds.find((r) => r.id === round.id))
+  // 決選投票では当該ラウンドの票が見えないため、同じ日の直前ラウンドの公開済み得票を
+  // 「先行票」の代わりに使う（C-7、2026-10-04確定）。
+  const counts = voteCounts(round.kind === 'normal' ? view.voteRounds.find((r) => r.id === round.id) : previousRoundOfDay(view, round.id))
+  if (round.kind !== 'normal') reasons.push('決選のため、先行票の代わりに直前ラウンドの公開済み得票を使用')
   const ctx: Ctx = { view, round, legal, counts, rng, reasons }
 
   const { margin, explanation } = executionMargin(view)

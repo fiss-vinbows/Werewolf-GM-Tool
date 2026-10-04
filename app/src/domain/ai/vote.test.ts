@@ -392,4 +392,38 @@ describe('C項目: 投票・ローラー', () => {
     const r = round(g, 'normal', [['p9', 'p2'], ['p10', 'p2']])
     expect(decide(g, 'p4', r).targetId).toBe('p2')
   })
+  it('C-5: 初日の決選の公開済み票からもローラーを認識する', () => {
+    const g = setup('p8', 2)
+    co(g, 'p6', 'medium', 1)
+    co(g, 'p9', 'medium', 1)
+    const n1 = round(g, 'normal', [['p10', 'p11'], ['p11', 'p6'], ['p12', 'p13']])
+    n1.day = 1; n1.resolved = true
+    const r1 = round(g, 'runoff1', [['p10', 'p6'], ['p12', 'p6'], ['p13', 'p11']], ['p6', 'p11'])
+    r1.day = 1; r1.resolved = true
+    const r = round(g, 'normal', [])
+    expect(decide(g, 'p8', r).reasons.join()).toContain('初日の決選投票')
+  })
+  it('C-6: ローラー開始後に同じ役職をCOした人も対象に加える', () => {
+    const g = setup('p8', 2)
+    co(g, 'p6', 'medium', 1)
+    co(g, 'p9', 'medium', 1)
+    const d1 = round(g, 'normal', [['p10', 'p6'], ['p11', 'p9']])
+    d1.day = 1; d1.resolved = true
+    kill(g, 'p6', 'execution', 1)
+    kill(g, 'p9', 'wolf-attack', 1)
+    co(g, 'p12', 'medium', 2)
+    const r = round(g, 'normal', [])
+    expect(decide(g, 'p8', r).targetId).toBe('p12')
+  })
+  it('C-7: 決選では直前ラウンドの得票を先行票の代わりに使う', () => {
+    const g = setup('p8', 3)
+    co(g, 'p3', 'wolf', 3)
+    co(g, 'p1', 'wolf', 3)
+    const n = round(g, 'normal', [['p9', 'p1'], ['p10', 'p1'], ['p11', 'p3'], ['p12', 'p3']])
+    n.resolved = true
+    // 直前ラウンドで p1 と p3 が同数 → 同数なら最初にCOした p3。p1 に多ければ p1。
+    n.votes.push({ voterId: 'p13', targetId: 'p1', recordedAt: '', order: 5, globalOrder: 5 })
+    const r = round(g, 'runoff1', [], ['p1', 'p3'])
+    expect(decide(g, 'p8', r).targetId).toBe('p1')
+  })
 })

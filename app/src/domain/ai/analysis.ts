@@ -188,20 +188,31 @@ export function ownKnownHumans(view: AiView): PlayerId[] {
 export type Roller = { role: 'medium' | 'seer'; targets: PlayerId[]; startedDay: number; basis: string }
 
 // ローラーの認識（方針C-2c）。先行票の過半数が対象役職のCO者全体に入っていれば成立。
-// 2日目以降に新しく始まったローラーには追従しないため、初日の通常投票（自分より前の票）でのみ開始を認識する。
+// 2日目以降に新しく始まったローラーには追従しないため、初日の投票でのみ開始を認識する。
+// 初日の通常投票は自分より前の票、初日の決選投票は公開済みの全票で判定する（C-5、2026-10-04確定）。
+// 対象は初日時点のCO者に、その後同じ役職をCOした人を加える。スライドで抜けた人も残す（C-6、2026-10-04確定）。
 export function detectRoller(view: AiView, currentRoundId: string | undefined): Roller | null {
-  const day1 = view.voteRounds.find((r) => r.day === 1 && r.kind === 'normal')
-  if (!day1) return null
-  // 判断中のラウンドなら公開済みの票すべて、過去のラウンドなら自分の票より前の票で判定する。
-  const own = day1.id === currentRoundId ? undefined : day1.votes.find((v) => v.voterId === view.selfId)
-  const votes = own ? day1.votes.filter((v) => v.order < own.order) : day1.votes
-  if (votes.length === 0) return null
-  for (const [role, minCo] of [['medium', 2], ['seer', 3]] as const) {
-    const claimants = everClaimantsAsOf(view, role, 1)
-    if (claimants.length < minCo) continue
-    const onClaimants = votes.filter((v) => claimants.includes(v.targetId)).length
-    if (onClaimants * 2 > votes.length) {
-      return { role, targets: claimants, startedDay: 1, basis: `初日の先行${votes.length}票中${onClaimants}票が${roleLabel(role)}CO者へ集中` }
+  for (const round of view.voteRounds.filter((r) => r.day === 1)) {
+    let votes = round.votes
+    if (round.kind === 'normal' && round.id !== currentRoundId) {
+      // 判断中のラウンドなら公開済みの票すべて、過去のラウンドなら自分の票より前の票で判定する。
+      const own = round.votes.find((v) => v.voterId === view.selfId)
+      if (own) votes = round.votes.filter((v) => v.order < own.order)
+    }
+    if (votes.length === 0) continue
+    for (const [role, minCo] of [['medium', 2], ['seer', 3]] as const) {
+      const claimants = everClaimantsAsOf(view, role, 1)
+      if (claimants.length < minCo) continue
+      const onClaimants = votes.filter((v) => claimants.includes(v.targetId)).length
+      if (onClaimants * 2 > votes.length) {
+        const kind = round.kind === 'normal' ? '初日の通常投票' : '初日の決選投票'
+        return {
+          role,
+          targets: unique([...claimants, ...activeClaimants(view, role)]),
+          startedDay: 1,
+          basis: `${kind}の${votes.length}票中${onClaimants}票が${roleLabel(role)}CO者へ集中`,
+        }
+      }
     }
   }
   return null
