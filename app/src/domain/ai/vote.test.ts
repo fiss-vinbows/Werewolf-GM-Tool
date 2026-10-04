@@ -331,6 +331,23 @@ describe('7-4: 破綻の解除', () => {
     const r = round(g, 'normal', [['p12', 'p9']])
     expect(decide(g, 'p8', r).reasons.join()).toContain('解除済み（A:')
   })
+  it('他人の撤回で条件から外れた場合は解除済みにしない', () => {
+    // 確定霊媒師p6がp10に白、予言者CO者p9がp10に黒（条件C）→ 霊媒師が白を撤回。
+    const g = setup('p8', 3)
+    co(g, 'p5', 'seer', 1)
+    co(g, 'p9', 'seer', 1)
+    co(g, 'p6', 'medium', 1)
+    claim(g, 'seer', 'p9', 'p10', 'wolf', 1)
+    g.resultClaims[g.resultClaims.length - 1].targetDay = 2
+    kill(g, 'p10', 'execution', 2)
+    claim(g, 'medium', 'p6', 'p10', 'not-wolf', 2)
+    co(g, 'p11', 'bodyguard', 3)
+    const m = g.resultClaims[g.resultClaims.length - 1]
+    m.retracted = true
+    m.retractedAt = { order: ++order, day: 3 }
+    const r = round(g, 'normal', [['p12', 'p9']])
+    expect(decide(g, 'p8', r).reasons.join()).not.toContain('解除済み')
+  })
   it('狂人AIは解除済みの人を人狼扱いしない', () => {
     const g = setup('p4', 2)
     released(g)

@@ -309,7 +309,8 @@ export function followeeVote(view: AiView, followeeId: PlayerId, roundId: string
 }
 
 // 破綻が解除された人（7-4）。過去のある時点の公表内容で破綻条件に当たり、
-// 現在の公表内容では当たらない生存者。村を混乱させた履歴として扱う。
+// 本人の撤回・訂正・スライドによって現在は当たらなくなった生存者。村を混乱させた履歴として扱う。
+// 他人の撤回（例：確定霊媒師が白を撤回）で条件から外れた場合は対象外（2026-10-04確定）。
 // COと公表結果の開始・撤回の時点を順に再現し、各時点で実際に同時に存在した主張だけで判定する。
 // 撤回時点の記録がない旧データは、撤回されずに残っていたものとして扱う（従来の近似）。
 export function releasedBrokenPlayers(view: AiView): Breakdown[] {
@@ -337,9 +338,21 @@ export function releasedBrokenPlayers(view: AiView): Breakdown[] {
       resultClaims: allClaims.filter((c) => c.eventOrder <= t && !(c.retractedAt && c.retractedAt.order <= t)),
     }
     for (const b of brokenPlayers(snapshot)) {
-      if (!current.has(b.playerId) && !result.has(b.playerId) && isAlive(view, b.playerId)) {
-        result.set(b.playerId, { playerId: b.playerId, reason: `解除済み（${b.reason}）` })
+      const id = b.playerId
+      if (current.has(id) || result.has(id) || !isAlive(view, id)) continue
+      // 現在の状態に、この時点より後に行った本人の撤回・変更だけを戻す。それで破綻するなら、
+      // 解除したのは本人の撤回・訂正・スライドである。
+      const own: AiView = {
+        ...view,
+        coRecords: view.coRecords.map((c) =>
+          c.playerId === id && c.eventOrder <= t && c.status !== 'active' && (!c.ended || c.ended.order > t) ? { ...c, status: 'active' as const } : c,
+        ),
+        resultClaims: [
+          ...view.resultClaims,
+          ...view.retractedResultClaims.filter((c) => c.speakerId === id && c.eventOrder <= t && (!c.retractedAt || c.retractedAt.order > t)),
+        ],
       }
+      if (brokenPlayers(own).some((x) => x.playerId === id)) result.set(id, { playerId: id, reason: `解除済み（${b.reason}）` })
     }
   }
   return [...result.values()]
