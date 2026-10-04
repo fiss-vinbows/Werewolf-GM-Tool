@@ -34,6 +34,9 @@ export type AiView = {
   coRecords: CoRecord[]
   // 撤回されていない公表結果。
   resultClaims: ResultClaim[]
+  // プレイヤー自身が撤回・訂正した公表結果（破綻解除の判定用、7-4）。
+  // GMの入力ミスは「1つ戻る」で記録ごと消えるため、ここには含まれない。
+  retractedResultClaims: ResultClaim[]
   // 判断時点までに公開された投票ラウンド。判断中のラウンドは公開済みの票だけを含む。
   voteRounds: PublicVoteRound[]
   // GMから全員へ通知された護衛成功の夜（誰を守ったかは含まない）。
@@ -119,6 +122,7 @@ export function buildAiView(game: GameState, selfId: PlayerId, opts: AiViewOptio
     players,
     coRecords: game.coRecords.filter((c) => c.day <= day).map((c) => ({ ...c })),
     resultClaims: game.resultClaims.filter((c) => !c.retracted && c.announcedDay <= day).map((c) => ({ ...c })),
+    retractedResultClaims: game.resultClaims.filter((c) => c.retracted && c.announcedDay <= day).map((c) => ({ ...c })),
     voteRounds,
     guardSuccessNights,
     ownSeerResults,

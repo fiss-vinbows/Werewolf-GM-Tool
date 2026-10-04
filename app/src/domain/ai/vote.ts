@@ -11,6 +11,7 @@ import {
   followeeVote,
   isAlive,
   mediumClaims,
+  releasedBrokenPlayers,
   nameOf,
   ownKnownHumans,
   roleLabel,
@@ -24,7 +25,7 @@ import {
 import type { AiView } from './view'
 
 // 判断方式の版。方針を変えたら上げる（判断履歴の振り返り用）。
-export const AI_VOTE_POLICY_VERSION = 'vote-rule-2'
+export const AI_VOTE_POLICY_VERSION = 'vote-rule-3'
 
 // 0以上1未満の乱数を返す関数。テストでは固定値を注入する。
 export type Rng = () => number
@@ -118,15 +119,22 @@ function decideVillageSide(ctx: Ctx, margin: number): VoteDecisionResult {
     return pick(ctx, pickRandom(ctx, allowed), 'ランダム投票')
   }
 
-  // 3. 初日から継続中のローラー。
+  // 3. 初日から継続中のローラーと、解除済みの破綻者（7-4）。
+  // 両方いれば当該ラウンドの個人別得票が多い人へ投票し、同数ならランダム。
+  const released = releasedBrokenPlayers(view).filter((b) => allowed.includes(b.playerId))
+  const releasedIds = released.map((b) => b.playerId)
+  if (released.length > 0) reasons.push(`解除済みの破綻者: ${released.map((b) => `${nameOf(view, b.playerId)}（${b.reason}）`).join('、')}`)
   const roller = detectRoller(view, ctx.round.id)
-  if (roller) {
-    const remaining = roller.targets.filter((id) => allowed.includes(id))
-    if (remaining.length > 0) {
-      reasons.push(`${roleLabel(roller.role)}ローラーを認識（${roller.basis}）`)
-      return pick(ctx, pickMost(ctx, remaining), 'ローラー対象のうち票の多い人へ重ねる')
-    }
+  const rollerTargets = roller ? roller.targets.filter((id) => allowed.includes(id)) : []
+  if (rollerTargets.length > 0) {
+    reasons.push(`${roleLabel(roller!.role)}ローラーを認識（${roller!.basis}）`)
+    const pool = unique([...rollerTargets, ...releasedIds])
+    const t = pickMost(ctx, pool)
+    return pick(ctx, t, releasedIds.length > 0 ? 'ローラー対象と解除済みの破綻者のうち票の多い人へ重ねる（7-4）' : 'ローラー対象のうち票の多い人へ重ねる')
   }
+  // ローラーがない場合の優先度は要相談。暫定として、解除済みの破綻者に先行票があれば重ねる。
+  const releasedWithVotes = releasedIds.filter((id) => (ctx.counts.get(id) ?? 0) > 0)
+  if (releasedWithVotes.length > 0) return pick(ctx, pickMost(ctx, releasedWithVotes), '解除済みの破綻者に先行票があるため重ねる（7-4・暫定）')
 
   // 4. 予言者2CO以上の片黒。
   const seers = activeClaimants(view, 'seer')
@@ -165,7 +173,9 @@ function decideVillageSide(ctx: Ctx, margin: number): VoteDecisionResult {
   const scores = villageScores(view, adoptedMediumResults(view, overrides))
   const scored = allowed.filter((id) => scores.has(id))
   if (scored.length > 0) reasons.push(`評価点: ${allowed.map((id) => `${nameOf(view, id)} ${scores.get(id) ?? 0}`).join('、')}`)
-  const t = weightedPick(ctx, allowed, (id) => Math.pow(2, -(scores.get(id) ?? 0) / 20))
+  // 解除済みの破綻者は、村を混乱させた履歴として選ばれやすさを2倍にする（7-4・暫定の強さ）。
+  const releasedSet = new Set(releasedIds)
+  const t = weightedPick(ctx, allowed, (id) => Math.pow(2, -(scores.get(id) ?? 0) / 20) * (releasedSet.has(id) ? 2 : 1))
   return pick(ctx, t, scored.length > 0 ? '評価点による重み付きランダム' : 'ランダム投票')
 }
 

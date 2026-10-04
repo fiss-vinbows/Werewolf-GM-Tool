@@ -307,3 +307,18 @@ export function followeeVote(view: AiView, followeeId: PlayerId, roundId: string
   }
   return ref?.votes.find((v) => v.voterId === followeeId)?.targetId ?? null
 }
+
+// 破綻が解除された人（7-4）。撤回・変更されたCOと公表結果も含めた「これまでの全主張」では
+// 破綻条件に当たるが、現在の公表内容では当たらない生存者。村を混乱させた履歴として扱う。
+// 撤回の時点は記録していないため、同時には存在しなかった主張を組み合わせて判定することがある（暫定）。
+export function releasedBrokenPlayers(view: AiView): Breakdown[] {
+  const everView: AiView = {
+    ...view,
+    coRecords: view.coRecords.map((c) => ({ ...c, status: 'active' as const })),
+    resultClaims: [...view.resultClaims, ...view.retractedResultClaims],
+  }
+  const current = new Set(brokenPlayers(view).map((b) => b.playerId))
+  return brokenPlayers(everView)
+    .filter((b) => !current.has(b.playerId) && isAlive(view, b.playerId))
+    .map((b) => ({ playerId: b.playerId, reason: `解除済み（${b.reason}）` }))
+}

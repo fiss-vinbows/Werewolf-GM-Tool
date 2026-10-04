@@ -247,3 +247,42 @@ describe('11章: パワープレイ', () => {
     expect(decide(g2, 'p8', r2).reasons.join()).toContain('先行票がない')
   })
 })
+
+describe('7-4: 破綻の解除', () => {
+  // p9が予言者COし、初日の結果として黒（破綻条件E）→ 撤回して解除。
+  function released(g: GameState) {
+    co(g, 'p5', 'seer', 1)
+    co(g, 'p9', 'seer', 1)
+    claim(g, 'seer', 'p9', 'p10', 'wolf', 1)
+    g.resultClaims[g.resultClaims.length - 1].retracted = true
+  }
+  it('撤回で矛盾が解消したら、現在の破綻者からは外れ、解除済みとして扱う', () => {
+    const g = setup('p8', 2)
+    released(g)
+    const r = round(g, 'normal', [['p11', 'p9']])
+    const res = decide(g, 'p8', r)
+    expect(res.reasons.join()).toContain('解除済みの破綻者')
+    expect(res.reasons.join()).not.toContain('破綻者へ投票')
+    expect(res.targetId).toBe('p9')
+  })
+  it('撤回されていなければ現在の破綻者のまま', () => {
+    const g = setup('p8', 2)
+    co(g, 'p5', 'seer', 1)
+    co(g, 'p9', 'seer', 1)
+    claim(g, 'seer', 'p9', 'p10', 'wolf', 1)
+    const r = round(g, 'normal', [['p11', 'p9']])
+    expect(decide(g, 'p8', r).reasons.join()).toContain('破綻者へ投票')
+  })
+  it('解除済みの破綻者が0票でローラーもなければ、通常の判断へ進む', () => {
+    const g = setup('p8', 2)
+    released(g)
+    const r = round(g, 'normal', [['p11', 'p12']])
+    expect(decide(g, 'p8', r, seq(0.5)).reasons.join()).toContain('解除済みの破綻者:')
+  })
+  it('狂人AIは解除済みの人を人狼扱いしない', () => {
+    const g = setup('p4', 2)
+    released(g)
+    const r = round(g, 'normal', [])
+    expect(decide(g, 'p4', r).reasons.join()).not.toContain('人狼扱いで投票対象外')
+  })
+})
