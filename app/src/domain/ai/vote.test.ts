@@ -236,6 +236,13 @@ describe('11章: パワープレイ', () => {
     const r = round(g, 'normal', [])
     expect(decide(g, 'p8', r).targetId).toBe('p3')
   })
+  it('11-6: 人狼CO者が複数なら票の多い人に合わせる', () => {
+    const g = setup('p8', 3)
+    co(g, 'p3', 'wolf', 3)
+    co(g, 'p1', 'wolf', 3)
+    const r = round(g, 'normal', [['p9', 'p1'], ['p10', 'p1'], ['p11', 'p3']])
+    expect(decide(g, 'p8', r).targetId).toBe('p1')
+  })
   it('11-6: 狂人CO者に先行票があれば重ね、なければランダム', () => {
     const g = setup('p8', 3)
     co(g, 'p4', 'madman', 3)

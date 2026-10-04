@@ -25,7 +25,7 @@ import {
 import type { AiView } from './view'
 
 // 判断方式の版。方針を変えたら上げる（判断履歴の振り返り用）。
-export const AI_VOTE_POLICY_VERSION = 'vote-rule-3'
+export const AI_VOTE_POLICY_VERSION = 'vote-rule-4'
 
 // 0以上1未満の乱数を返す関数。テストでは固定値を注入する。
 export type Rng = () => number
@@ -100,8 +100,8 @@ function decideVillageSide(ctx: Ctx, margin: number): VoteDecisionResult {
   }
 
   // 1b. パワープレイへの対応（11-6）。対象は村人AIのみ。
-  // 予言者・霊媒師・狩人AIへの適用範囲と、確定人狼との優先関係は要相談のため、
-  // 暫定として「確定人狼の次・破綻者の前」に置く。
+  // 優先順位は「確定人狼の次・破綻者の前」（2026-10-04確定）。
+  // 予言者・霊媒師・狩人AIへの適用範囲は要相談。
   if (view.selfRole === 'villager') {
     const pp = decideVillagerAgainstPp(ctx, allowed)
     if (pp) return pp
@@ -255,9 +255,14 @@ function decideMadman(ctx: Ctx): VoteDecisionResult {
 // 村人AIの人狼CO・狂人COへの対応（11-6）。裏読みはせず、該当がなければnullを返して通常判断へ。
 function decideVillagerAgainstPp(ctx: Ctx, allowed: PlayerId[]): VoteDecisionResult | null {
   const { view } = ctx
-  // 人狼CO者には投票する。複数いれば最初にCOした人。
-  const wolfCo = wolfCoOrder(view).find((id) => allowed.includes(id))
-  if (wolfCo) return pick(ctx, wolfCo, '人狼CO者へ投票（複数なら最初にCOした人）（11-6）')
+  // 人狼CO者には投票する。票が散ると負ける恐れがあるため、複数いれば当該ラウンドで
+  // 票の多い人に合わせる。同数（全員0票を含む）なら最初にCOした人（2026-10-04確定）。
+  const wolfCos = wolfCoOrder(view).filter((id) => allowed.includes(id))
+  if (wolfCos.length > 0) {
+    const max = Math.max(...wolfCos.map((id) => ctx.counts.get(id) ?? 0))
+    const t = wolfCos.find((id) => (ctx.counts.get(id) ?? 0) === max)!
+    return pick(ctx, t, wolfCos.length > 1 ? '人狼CO者のうち票の多い人へ合わせる（同数なら最初にCOした人）（11-6）' : '人狼CO者へ投票（11-6）')
+  }
   // 狂人CO者：自分より前の票が1票以上あれば重ね、なければランダム。
   const madCos = activeClaimants(view, 'madman').filter((id) => allowed.includes(id))
   if (madCos.length === 0) return null
