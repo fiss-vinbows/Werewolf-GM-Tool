@@ -38,6 +38,7 @@ export function createInitialGameState(): GameState {
       defaultAiOrder: null,
       defaultTimerSeconds: DEFAULT_TIMER_SECONDS,
       resultLabelStyle: 'wolf-human',
+      day1WhiteNoticeMode: 'auto',
     },
     players: createInitialPlayers(13),
     day: 0,
@@ -49,7 +50,9 @@ export function createInitialGameState(): GameState {
     eventCounter: 0,
     voteEventCounter: 0,
     dayTimer: { running: false, startedAt: null, durationMs: DEFAULT_TIMER_SECONDS * 1000, remainingMs: DEFAULT_TIMER_SECONDS * 1000 },
-    pauseIntervals: [],
+    // 議論タイマーは作成時点では動いていないため、開始前の時間がCO等の「経過時間」に
+    // 混ざらないよう、最初から一時停止区間を開いた状態にしておく。
+    pauseIntervals: [{ start: now, end: null }],
     discussionEnded: false,
     day1WhiteNotice: null,
     finished: false,

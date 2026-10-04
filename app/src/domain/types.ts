@@ -226,7 +226,12 @@ export type GameMeta = {
   defaultTimerSeconds: number
   // 人狼／人間ではないの表記方法（黒・白表記との切り替え）。
   resultLabelStyle: ResultLabelStyle
+  // 初日白（予言者への通知対象）の決め方。'auto'なら条件が揃った時点でシステムが自動抽選し、
+  // 'manual'ならGMが手動で対象を選ぶ（自動抽選は行わない）。
+  day1WhiteNoticeMode: Day1WhiteNoticeMode
 }
+
+export type Day1WhiteNoticeMode = 'auto' | 'manual'
 
 export type ResultLabelStyle = 'wolf-human' | 'black-white'
 
