@@ -103,7 +103,12 @@ export type CoRecord = {
   note: string
   // 投票中／決選投票中のCOの場合、その時点までのその日の投票通し番号（何票目の後か）。
   afterVoteCount: number | null
+  // 撤回・変更（スライド）された時点。破綻解除の判定に使う（7-4）。旧データにはない。
+  ended?: EventPoint | null
 }
+
+// ゲーム内の発生時点（通し番号と日）。
+export type EventPoint = { order: number; day: number }
 
 export type ResultClaimKind = 'seer' | 'medium' | 'guard'
 
@@ -120,6 +125,8 @@ export type ResultClaim = {
   result: 'wolf' | 'not-wolf' | 'guarded' // 護衛主張はguardedのみ使用
   recordedAt: string
   retracted: boolean
+  // プレイヤーが撤回・訂正した時点（7-4）。旧データにはない。
+  retractedAt?: EventPoint | null
 }
 
 export type VoteRoundKind = 'normal' | 'runoff1' | 'runoff2'

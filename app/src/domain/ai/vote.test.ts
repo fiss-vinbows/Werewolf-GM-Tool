@@ -301,6 +301,36 @@ describe('7-4: 破綻の解除', () => {
     const r = round(g, 'normal', [['p11', 'p12']])
     expect(decide(g, 'p8', r, seq(0.5)).reasons.join()).toContain('解除済みの破綻者:')
   })
+  it('撤回時点の記録あり：撤回の後に起きた出来事とは組み合わせない', () => {
+    // p9が2日目に p10 へ黒 → 2日目のうちに撤回 → 2日目の夜に p10 が襲撃死（3日目に公開）。
+    // 黒と襲撃死は同時に存在していないので、破綻（条件A）の履歴にはならない。
+    const g = setup('p8', 3)
+    co(g, 'p5', 'seer', 1)
+    co(g, 'p9', 'seer', 1)
+    claim(g, 'seer', 'p9', 'p10', 'wolf', 2)
+    const c = g.resultClaims[g.resultClaims.length - 1]
+    c.announcedDay = 2
+    c.retracted = true
+    c.retractedAt = { order: ++order, day: 2 }
+    kill(g, 'p10', 'wolf-attack', 2)
+    co(g, 'p11', 'bodyguard', 3)
+    const r = round(g, 'normal', [['p12', 'p9']])
+    expect(decide(g, 'p8', r).reasons.join()).not.toContain('解除済み')
+  })
+  it('撤回時点の記録あり：襲撃死の公開後に撤回したら解除済みとして扱う', () => {
+    const g = setup('p8', 4)
+    co(g, 'p5', 'seer', 1)
+    co(g, 'p9', 'seer', 1)
+    claim(g, 'seer', 'p9', 'p10', 'wolf', 2)
+    const c = g.resultClaims[g.resultClaims.length - 1]
+    c.announcedDay = 2
+    kill(g, 'p10', 'wolf-attack', 2)
+    co(g, 'p11', 'bodyguard', 3) // 3日目の時点：黒と襲撃死が同時に存在（破綻）
+    c.retracted = true
+    c.retractedAt = { order: ++order, day: 3 }
+    const r = round(g, 'normal', [['p12', 'p9']])
+    expect(decide(g, 'p8', r).reasons.join()).toContain('解除済み（A:')
+  })
   it('狂人AIは解除済みの人を人狼扱いしない', () => {
     const g = setup('p4', 2)
     released(g)

@@ -308,17 +308,39 @@ export function followeeVote(view: AiView, followeeId: PlayerId, roundId: string
   return ref?.votes.find((v) => v.voterId === followeeId)?.targetId ?? null
 }
 
-// 破綻が解除された人（7-4）。撤回・変更されたCOと公表結果も含めた「これまでの全主張」では
-// 破綻条件に当たるが、現在の公表内容では当たらない生存者。村を混乱させた履歴として扱う。
-// 撤回の時点は記録していないため、同時には存在しなかった主張を組み合わせて判定することがある（暫定）。
+// 破綻が解除された人（7-4）。過去のある時点の公表内容で破綻条件に当たり、
+// 現在の公表内容では当たらない生存者。村を混乱させた履歴として扱う。
+// COと公表結果の開始・撤回の時点を順に再現し、各時点で実際に同時に存在した主張だけで判定する。
+// 撤回時点の記録がない旧データは、撤回されずに残っていたものとして扱う（従来の近似）。
 export function releasedBrokenPlayers(view: AiView): Breakdown[] {
-  const everView: AiView = {
-    ...view,
-    coRecords: view.coRecords.map((c) => ({ ...c, status: 'active' as const })),
-    resultClaims: [...view.resultClaims, ...view.retractedResultClaims],
-  }
   const current = new Set(brokenPlayers(view).map((b) => b.playerId))
-  return brokenPlayers(everView)
-    .filter((b) => !current.has(b.playerId) && isAlive(view, b.playerId))
-    .map((b) => ({ playerId: b.playerId, reason: `解除済み（${b.reason}）` }))
+  const allClaims = [...view.resultClaims, ...view.retractedResultClaims]
+  const points = new Map<number, number>() // 時点の通し番号 → 日
+  for (const c of view.coRecords) {
+    points.set(c.eventOrder, c.day)
+    if (c.ended) points.set(c.ended.order, c.ended.day)
+  }
+  for (const c of allClaims) {
+    points.set(c.eventOrder, c.announcedDay)
+    if (c.retractedAt) points.set(c.retractedAt.order, c.retractedAt.day)
+  }
+  const result = new Map<PlayerId, Breakdown>()
+  for (const [t, day] of [...points.entries()].sort((a, b) => a[0] - b[0])) {
+    const snapshot: AiView = {
+      ...view,
+      day,
+      // 襲撃死は翌朝に公開されるため、その時点の日より前の死亡だけを見せる。
+      players: view.players.map((p) => (p.death && p.death.day >= day ? { ...p, alive: true, death: null } : p)),
+      coRecords: view.coRecords
+        .filter((c) => c.eventOrder <= t && !(c.ended && c.ended.order <= t))
+        .map((c) => ({ ...c, status: 'active' as const })),
+      resultClaims: allClaims.filter((c) => c.eventOrder <= t && !(c.retractedAt && c.retractedAt.order <= t)),
+    }
+    for (const b of brokenPlayers(snapshot)) {
+      if (!current.has(b.playerId) && !result.has(b.playerId) && isAlive(view, b.playerId)) {
+        result.set(b.playerId, { playerId: b.playerId, reason: `解除済み（${b.reason}）` })
+      }
+    }
+  }
+  return [...result.values()]
 }

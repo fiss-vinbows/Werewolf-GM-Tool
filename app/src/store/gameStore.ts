@@ -426,12 +426,16 @@ export const useGameStore = create<GameStore>()(
         const player = record && s.players.find((p) => p.id === record.playerId)
         if (!player?.alive) return // 死亡したプレイヤーは発言できないため撤回できない。
         get().pushHistory('COの撤回')
-        set((s2) => ({
-          game: {
-            ...s2.game,
-            coRecords: s2.game.coRecords.map((c) => (c.id === coId ? { ...c, status: 'retracted' as CoStatus } : c)),
-          },
-        }))
+        set((s2) => {
+          const ended = { order: nextEventOrder(s2.game), day: s2.game.day }
+          return {
+            game: {
+              ...s2.game,
+              coRecords: s2.game.coRecords.map((c) => (c.id === coId ? { ...c, status: 'retracted' as CoStatus, ended } : c)),
+              eventCounter: s2.game.eventCounter + 1,
+            },
+          }
+        })
       },
 
       eraseCoRecord: (coId) => {
@@ -443,10 +447,12 @@ export const useGameStore = create<GameStore>()(
         get().pushHistory('COの変更（スライド）')
         set((s) => {
           const g = cloneState(s.game)
-          g.coRecords = g.coRecords.map((c) => (c.id === previousCoId ? { ...c, status: 'changed' as CoStatus } : c))
+          // 変更前のCOは、新しいCOと同じ時点で終了したものとして記録する（7-4）。
+          const order = nextEventOrder(g)
+          g.coRecords = g.coRecords.map((c) => (c.id === previousCoId ? { ...c, status: 'changed' as CoStatus, ended: { order, day } } : c))
           const record: CoRecord = {
             id: newEventId('co'),
-            eventOrder: nextEventOrder(g),
+            eventOrder: order,
             day,
             claimedRole,
             playerId,
@@ -485,9 +491,16 @@ export const useGameStore = create<GameStore>()(
         const speaker = claim && s.players.find((p) => p.id === claim.speakerId)
         if (!speaker?.alive) return // 死亡したプレイヤーは発言できないため撤回できない。
         get().pushHistory('公表結果の訂正')
-        set((s2) => ({
-          game: { ...s2.game, resultClaims: s2.game.resultClaims.map((c) => (c.id === id ? { ...c, retracted: true } : c)) },
-        }))
+        set((s2) => {
+          const retractedAt = { order: nextEventOrder(s2.game), day: s2.game.day }
+          return {
+            game: {
+              ...s2.game,
+              resultClaims: s2.game.resultClaims.map((c) => (c.id === id ? { ...c, retracted: true, retractedAt } : c)),
+              eventCounter: s2.game.eventCounter + 1,
+            },
+          }
+        })
       },
 
       eraseResultClaim: (id) => {
