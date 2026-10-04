@@ -25,7 +25,7 @@ import {
 import type { AiView } from './view'
 
 // 判断方式の版。方針を変えたら上げる（判断履歴の振り返り用）。
-export const AI_VOTE_POLICY_VERSION = 'vote-rule-4'
+export const AI_VOTE_POLICY_VERSION = 'vote-rule-5'
 
 // 0以上1未満の乱数を返す関数。テストでは固定値を注入する。
 export type Rng = () => number
@@ -99,10 +99,11 @@ function decideVillageSide(ctx: Ctx, margin: number): VoteDecisionResult {
     return pick(ctx, t, `確定人狼扱い（${wolves.get(t)}）へ投票`)
   }
 
-  // 1b. パワープレイへの対応（11-6）。対象は村人AIのみ。
+  // 1b. パワープレイへの対応（11-6）。村人陣営AI全員（村人・予言者・霊媒師・狩人）に適用する。
   // 優先順位は「確定人狼の次・破綻者の前」（2026-10-04確定）。
-  // 予言者・霊媒師・狩人AIへの適用範囲は要相談。
-  if (view.selfRole === 'villager') {
+  // 方針：村人陣営が負けないことを最優先し、票を合わせて勝率を下げないようにする。
+  // 人間の票が散って合わせ先がない場合は、本来の条件に従う。
+  {
     const pp = decideVillagerAgainstPp(ctx, allowed)
     if (pp) return pp
   }

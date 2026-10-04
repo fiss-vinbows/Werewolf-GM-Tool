@@ -236,6 +236,14 @@ describe('11章: パワープレイ', () => {
     const r = round(g, 'normal', [])
     expect(decide(g, 'p8', r).targetId).toBe('p3')
   })
+  it('11-6: 予言者・霊媒師・狩人AIも人狼CO者に投票する', () => {
+    for (const ai of ['p5', 'p6', 'p7']) {
+      const g = setup(ai, 3)
+      co(g, 'p2', 'wolf', 3)
+      const r = round(g, 'normal', [])
+      expect(decide(g, ai, r).targetId).toBe('p2')
+    }
+  })
   it('11-6: 人狼CO者が複数なら票の多い人に合わせる', () => {
     const g = setup('p8', 3)
     co(g, 'p3', 'wolf', 3)
