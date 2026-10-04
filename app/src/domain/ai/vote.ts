@@ -25,7 +25,7 @@ import {
 import type { AiView } from './view'
 
 // 判断方式の版。方針を変えたら上げる（判断履歴の振り返り用）。
-export const AI_VOTE_POLICY_VERSION = 'vote-rule-7'
+export const AI_VOTE_POLICY_VERSION = 'vote-rule-8'
 
 // 0以上1未満の乱数を返す関数。テストでは固定値を注入する。
 export type Rng = () => number
@@ -167,15 +167,18 @@ function decideVillageSide(ctx: Ctx, margin: number): VoteDecisionResult {
   const mediums = activeClaimants(view, 'medium')
   if (mediums.length === 2 && view.selfRole !== 'medium') {
     const claims = mediumClaims(view)
-    const split = findMediumSplit(claims, mediums)
-    if (split) {
-      const mediumPair = [split.blackSpeaker, split.whiteSpeaker].filter((id) => allowed.includes(id))
+    // 結果が割れた処刑者が複数いる場合は、すべての割れを平等に扱う（C-2、2026-10-04確定）。
+    const splits = findMediumSplits(claims, mediums)
+    if (splits.length > 0) {
+      const mediumPair = mediums.filter((id) => allowed.includes(id))
       if (margin <= 0 && mediumPair.length > 0) return pick(ctx, pickRandom(ctx, mediumPair), '余裕なしのため霊媒師CO者2人からランダム（決め打ち）')
-      if ((ctx.counts.get(split.blackSpeaker) ?? 0) > 0 && allowed.includes(split.blackSpeaker)) {
-        return pick(ctx, split.blackSpeaker, `霊媒結果が割れ、黒を出した${nameOf(view, split.blackSpeaker)}に先行票があるため重ねる`)
+      const blackSpeakers = unique(splits.map((x) => x.blackSpeaker)).filter((id) => allowed.includes(id) && (ctx.counts.get(id) ?? 0) > 0)
+      if (blackSpeakers.length > 0) {
+        const t = pickMost(ctx, blackSpeakers)
+        return pick(ctx, t, `霊媒結果が割れ、黒を出した${nameOf(view, t)}に先行票があるため重ねる`)
       }
-      overrides = new Map([[split.executedId, 'not-wolf']])
-      reasons.push(`霊媒結果が割れたため、${nameOf(view, split.whiteSpeaker)}の人間結果を基に評価`)
+      overrides = new Map(splits.map((x) => [x.executedId, 'not-wolf' as const]))
+      reasons.push(`霊媒結果が割れたため、人間結果を基に評価（${splits.map((x) => `${nameOf(view, x.executedId)}は${nameOf(view, x.whiteSpeaker)}の結果`).join('、')}）`)
     }
   }
 
@@ -220,6 +223,8 @@ function decideWolf(ctx: Ctx): VoteDecisionResult {
     return pick(ctx, pickRandom(ctx, ctx.legal), 'ランダム投票（強制）')
   }
   if (allowed.length < ctx.legal.length) ctx.reasons.push('仲間の人狼を投票対象外')
+  const roll = joinRoller(ctx, allowed)
+  if (roll) return roll
   return pick(ctx, pickRandom(ctx, allowed), followee ? 'ランダム投票（11-4）' : 'ランダム投票（方針C-2）')
 }
 
@@ -259,6 +264,8 @@ function decideMadman(ctx: Ctx): VoteDecisionResult {
     ctx.reasons.push('候補が全員人狼扱いのため、例外として除外を解除')
     return pick(ctx, pickRandom(ctx, ctx.legal), 'ランダム投票（強制）')
   }
+  const roll = joinRoller(ctx, allowed)
+  if (roll) return roll
   return pick(ctx, pickRandom(ctx, allowed), 'ランダム投票（5-4-3）')
 }
 
@@ -282,19 +289,25 @@ function decideVillagerAgainstPp(ctx: Ctx, allowed: PlayerId[]): VoteDecisionRes
   return pick(ctx, pickRandom(ctx, allowed), 'ランダム投票')
 }
 
-function findMediumSplit(
-  claims: ReturnType<typeof mediumClaims>,
-  mediums: PlayerId[],
-): { executedId: PlayerId; blackSpeaker: PlayerId; whiteSpeaker: PlayerId } | null {
+function findMediumSplits(claims: ReturnType<typeof mediumClaims>, mediums: PlayerId[]): { executedId: PlayerId; blackSpeaker: PlayerId; whiteSpeaker: PlayerId }[] {
   const [a, b] = mediums
+  const result: { executedId: PlayerId; blackSpeaker: PlayerId; whiteSpeaker: PlayerId }[] = []
   for (const ca of claims.filter((c) => c.speakerId === a)) {
     const cb = claims.find((c) => c.speakerId === b && c.targetId === ca.targetId)
-    if (!cb || cb.result === ca.result) continue
-    return ca.result === 'wolf'
-      ? { executedId: ca.targetId, blackSpeaker: a, whiteSpeaker: b }
-      : { executedId: ca.targetId, blackSpeaker: b, whiteSpeaker: a }
+    if (!cb || cb.result === ca.result || result.some((x) => x.executedId === ca.targetId)) continue
+    result.push(ca.result === 'wolf' ? { executedId: ca.targetId, blackSpeaker: a, whiteSpeaker: b } : { executedId: ca.targetId, blackSpeaker: b, whiteSpeaker: a })
   }
-  return null
+  return result
+}
+
+// 人狼AI・狂人AIのローラー参加（C-4、2026-10-04確定）。除外する人を除いたローラー対象のうち票の多い人へ重ねる。
+function joinRoller(ctx: Ctx, allowed: PlayerId[]): VoteDecisionResult | null {
+  const roller = detectRoller(ctx.view, ctx.round.id)
+  if (!roller) return null
+  const targets = roller.targets.filter((id) => allowed.includes(id))
+  if (targets.length === 0) return null
+  ctx.reasons.push(`${roleLabel(roller.role)}ローラーを認識（${roller.basis}）`)
+  return pick(ctx, pickMost(ctx, targets), 'ローラー対象のうち票の多い人へ重ねる（C-4）')
 }
 
 function pick(ctx: Ctx, targetId: PlayerId, reason: string): VoteDecisionResult {

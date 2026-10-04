@@ -356,3 +356,40 @@ describe('7-4: 破綻の解除', () => {
     expect(decide(g, 'p4', r).reasons.join()).not.toContain('人狼扱いで投票対象外')
   })
 })
+
+describe('C項目: 投票・ローラー', () => {
+  it('C-2: 霊媒結果の割れが複数あれば平等に扱い、先行票のある黒側の霊媒師に重ねる', () => {
+    const g = setup('p8', 3)
+    co(g, 'p6', 'medium', 1)
+    co(g, 'p9', 'medium', 1)
+    kill(g, 'p10', 'execution', 1)
+    kill(g, 'p11', 'execution', 2)
+    claim(g, 'medium', 'p6', 'p10', 'wolf', 1)
+    claim(g, 'medium', 'p9', 'p10', 'not-wolf', 1)
+    claim(g, 'medium', 'p9', 'p11', 'wolf', 2)
+    claim(g, 'medium', 'p6', 'p11', 'not-wolf', 2)
+    // 2つ目の割れで黒を出したp9に先行票がある → 最初の割れだけを見ていた旧実装ではp9に重ねない。
+    const r = round(g, 'normal', [['p12', 'p9']])
+    expect(decide(g, 'p8', r).targetId).toBe('p9')
+  })
+  function rollerGame(aiId: PlayerId) {
+    const g = setup(aiId, 2)
+    co(g, 'p6', 'medium', 1)
+    co(g, 'p2', 'medium', 1)
+    const d1 = round(g, 'normal', [['p8', 'p6'], ['p9', 'p6'], ['p10', 'p2']])
+    d1.day = 1
+    d1.resolved = true
+    return g
+  }
+  it('C-4: 人狼AIは仲間を除いてローラーに参加する', () => {
+    const g = rollerGame('p1')
+    const r = round(g, 'normal', [['p9', 'p2']])
+    // 仲間のp2は除き、残るローラー対象p6へ。
+    expect(decide(g, 'p1', r).targetId).toBe('p6')
+  })
+  it('C-4: 狂人AIもローラー対象のうち票の多い人へ重ねる', () => {
+    const g = rollerGame('p4')
+    const r = round(g, 'normal', [['p9', 'p2'], ['p10', 'p2']])
+    expect(decide(g, 'p4', r).targetId).toBe('p2')
+  })
+})
