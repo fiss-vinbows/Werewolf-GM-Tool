@@ -4,6 +4,7 @@ import { createInitialGameState, newEventId } from '../domain/factory'
 import { ROLE_COUNTS, type SupportedPlayerCount } from '../domain/types'
 import { validateRoleAssignment } from '../domain/roleValidation'
 import { buildAiView } from '../domain/ai/view'
+import { canSpeak } from '../domain/speech'
 import { AI_VOTE_POLICY_VERSION, centralVoteOrder, decideVote } from '../domain/ai/vote'
 import { AI_NIGHT_POLICY_VERSION, decideGuardTarget, decideSeerTarget, decideWolfAttack } from '../domain/ai/night'
 import type {
@@ -410,8 +411,7 @@ export const useGameStore = create<GameStore>()(
       retractCoRecord: (coId) => {
         const s = get().game
         const record = s.coRecords.find((c) => c.id === coId)
-        const player = record && s.players.find((p) => p.id === record.playerId)
-        if (!player?.alive) return // 死亡したプレイヤーは発言できないため撤回できない。
+        if (!record || !canSpeak(s, record.playerId)) return // 死亡したプレイヤーは発言できないため撤回できない（遺言中を除く）。
         get().pushHistory('COの撤回')
         set((s2) => {
           const ended = { order: nextEventOrder(s2.game), day: s2.game.day }
@@ -475,8 +475,7 @@ export const useGameStore = create<GameStore>()(
       retractResultClaim: (id) => {
         const s = get().game
         const claim = s.resultClaims.find((c) => c.id === id)
-        const speaker = claim && s.players.find((p) => p.id === claim.speakerId)
-        if (!speaker?.alive) return // 死亡したプレイヤーは発言できないため撤回できない。
+        if (!claim || !canSpeak(s, claim.speakerId)) return // 死亡したプレイヤーは発言できないため撤回できない（遺言中を除く）。
         get().pushHistory('公表結果の訂正')
         set((s2) => {
           const retractedAt = { order: nextEventOrder(s2.game), day: s2.game.day }

@@ -3,6 +3,7 @@ import { useGameStore } from '../store/gameStore'
 import { ROLE_COLORS } from '../domain/roleColors'
 import { DEFAULT_ROLE_NAMES, ROLE_LAYOUT_ROWS, type Player, type PlayerId, type RoleKey } from '../domain/types'
 import { PlayerName } from './PlayerName'
+import { canSpeak } from '../domain/speech'
 
 const ROLE_ORDER: RoleKey[] = ['wolf', 'madman', 'seer', 'medium', 'bodyguard', 'villager']
 // 予言者・霊媒師は白丸／黒丸の2アイコン、狩人は護衛順を示す○アイコン1つだけを使う（要求7・要求4）。
@@ -38,8 +39,7 @@ export function CoBoard() {
   }
 
   function recordCo(playerId: string, role: RoleKey) {
-    const target = game.players.find((p) => p.id === playerId)
-    if (!target?.alive) return // 死亡したプレイヤーの記録は操作しない。
+    if (!canSpeak(game, playerId)) return // 死亡したプレイヤーの記録は操作しない（遺言中を除く）。
     const existing = game.coRecords.find((c) => c.playerId === playerId && c.status === 'active')
     if (existing) {
       if (existing.claimedRole === role) return
@@ -104,7 +104,7 @@ export function CoBoard() {
       .filter((c) => (c.kind === 'guard' ? true : TWO_ICON_ROLES.includes(c.kind as RoleKey)) && c.targetId === p.id && !c.retracted)
       .sort((a, b) => a.eventOrder - b.eventOrder)
 
-    const interactive = p.alive // 死亡したプレイヤーは新規のドラッグ起点にしない。
+    const interactive = canSpeak(game, p.id) // 死亡したプレイヤーは新規のドラッグ起点にしない（遺言中を除く）。
 
     return (
       <div
@@ -154,7 +154,7 @@ export function CoBoard() {
               onClick={(e) => {
                 e.stopPropagation()
                 const rect = (e.target as HTMLElement).getBoundingClientRect()
-                setMenu({ kind: 'co', id: activeCo.id, x: rect.left, y: rect.bottom, canRetract: p.alive })
+                setMenu({ kind: 'co', id: activeCo.id, x: rect.left, y: rect.bottom, canRetract: canSpeak(game, p.id) })
               }}
             >
               ×
@@ -179,7 +179,7 @@ export function CoBoard() {
                   onClick={(e) => {
                     e.stopPropagation()
                     const rect = (e.target as HTMLElement).getBoundingClientRect()
-                    setMenu({ kind: 'claim', id: j.id, x: rect.left, y: rect.bottom, canRetract: !!speaker?.alive })
+                    setMenu({ kind: 'claim', id: j.id, x: rect.left, y: rect.bottom, canRetract: !!speaker && canSpeak(game, speaker.id) })
                   }}
                 >
                   {!isBinary && '○'}

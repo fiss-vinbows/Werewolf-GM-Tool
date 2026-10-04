@@ -3,6 +3,7 @@ import { useGameStore } from '../store/gameStore'
 import { ROLE_COLORS } from '../domain/roleColors'
 import { DEFAULT_ROLE_NAMES, type Player, type PlayerId, type RoleKey, type VoteRound } from '../domain/types'
 import { PlayerName } from './PlayerName'
+import { isGivingLastWords } from '../domain/speech'
 
 const ROLE_ORDER: RoleKey[] = ['wolf', 'madman', 'seer', 'medium', 'bodyguard', 'villager']
 
@@ -42,6 +43,8 @@ export function VoteScreen({ onGoToNight }: { onGoToNight?: () => void }) {
       {rounds.map((round) => (
         <VoteRoundBoard key={round.id} round={round} alivePlayers={alivePlayers} />
       ))}
+
+      {latestRoundResolved && <LastWordsPanel />}
 
       {latestRoundResolved && game.finished && (
         <section className="card">
@@ -322,6 +325,53 @@ function VoteRoundBoard({ round, alivePlayers }: { round: VoteRound; alivePlayer
       {round.resolved && (
         <p>結果: {round.executedId ? game.players.find((p) => p.id === round.executedId)?.displayName + ' 処刑' : '処刑者なし'}</p>
       )}
+    </section>
+  )
+}
+
+// 処刑者の遺言でのCO（夜フェイズへ進むまでの間だけ記録できる）。
+// 結果の公表（予言・霊媒の判定）は「昼・CO」タブのCOボードで、遺言中の処刑者からドラッグして記録する。
+function LastWordsPanel() {
+  const game = useGameStore((s) => s.game)
+  const addCoRecord = useGameStore((s) => s.addCoRecord)
+  const changeCoRecord = useGameStore((s) => s.changeCoRecord)
+  const executed = game.players.find((p) => isGivingLastWords(game, p.id))
+  if (!executed) return null
+  const roleName = (r: RoleKey) => game.meta.roleNames[r] ?? DEFAULT_ROLE_NAMES[r]
+  const activeCo = game.coRecords.find((c) => c.playerId === executed.id && c.status === 'active')
+
+  function record(role: RoleKey) {
+    if (!executed) return
+    if (activeCo) {
+      if (activeCo.claimedRole === role) return
+      changeCoRecord({ previousCoId: activeCo.id, playerId: executed.id, claimedRole: role, day: game.day, note: '遺言' })
+    } else {
+      addCoRecord({ playerId: executed.id, claimedRole: role, day: game.day, note: '遺言' })
+    }
+  }
+
+  return (
+    <section className="card">
+      <h2>遺言でのCO</h2>
+      <p>
+        処刑された <PlayerName player={executed} /> が遺言で役職をCOした場合に記録します。
+        {activeCo && <>現在のCO：<strong>{roleName(activeCo.claimedRole)}</strong></>}
+      </p>
+      <div className="row">
+        {ROLE_ORDER.map((r) => (
+          <button
+            key={r}
+            style={{ borderColor: ROLE_COLORS[r] }}
+            disabled={activeCo?.claimedRole === r}
+            onClick={() => record(r)}
+          >
+            {roleName(r)}CO
+          </button>
+        ))}
+      </div>
+      <p className="hint">
+        遺言での結果の公表（予言・霊媒の判定）は「昼・CO」タブのCOボードで記録できます。夜フェイズへ進むと、遺言は記録できなくなります。
+      </p>
     </section>
   )
 }
