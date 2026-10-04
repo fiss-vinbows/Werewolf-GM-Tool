@@ -244,6 +244,13 @@ describe('11章: パワープレイ', () => {
       expect(decide(g, ai, r).targetId).toBe('p2')
     }
   })
+  it('11-6: 予言者AIは人狼CO者に先行票があれば自分の黒判定より合わせ、なければ黒判定へ', () => {
+    const g = setup('p5', 3)
+    g.nightRecords.push({ day: 1, seer: { day: 1, targetId: 'p1', result: 'wolf' }, seerSkipped: false, medium: null, mediumSkipped: false, bodyguard: null, guardSkipped: false, wolf: null })
+    co(g, 'p2', 'wolf', 3)
+    expect(decide(g, 'p5', round(g, 'normal', [['p9', 'p2']])).targetId).toBe('p2')
+    expect(decide(g, 'p5', round(g, 'normal', [['p9', 'p10']])).targetId).toBe('p1')
+  })
   it('11-6: 人狼CO者が複数なら票の多い人に合わせる', () => {
     const g = setup('p8', 3)
     co(g, 'p3', 'wolf', 3)

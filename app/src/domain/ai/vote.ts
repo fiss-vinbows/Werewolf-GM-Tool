@@ -25,7 +25,7 @@ import {
 import type { AiView } from './view'
 
 // 判断方式の版。方針を変えたら上げる（判断履歴の振り返り用）。
-export const AI_VOTE_POLICY_VERSION = 'vote-rule-5'
+export const AI_VOTE_POLICY_VERSION = 'vote-rule-6'
 
 // 0以上1未満の乱数を返す関数。テストでは固定値を注入する。
 export type Rng = () => number
@@ -89,6 +89,17 @@ function decideVillageSide(ctx: Ctx, margin: number): VoteDecisionResult {
   if (excludedHere.length > 0) reasons.push(`投票対象外: ${excludedHere.map((id) => `${nameOf(view, id)}（${excluded.get(id)}）`).join('、')}`)
 
   if (allowed.length === 0) return forcedVillage(ctx)
+
+  // 0. 人狼CO者に先行票があれば、確定人狼より優先して合わせる（票を散らさないため、2026-10-04確定）。
+  // 先行票がなければ、下の確定人狼 → 人狼CO者… の本来の順に従う。
+  {
+    const wolfCos = wolfCoOrder(view).filter((id) => allowed.includes(id) && (ctx.counts.get(id) ?? 0) > 0)
+    if (wolfCos.length > 0) {
+      const max = Math.max(...wolfCos.map((id) => ctx.counts.get(id) ?? 0))
+      const t = wolfCos.find((id) => (ctx.counts.get(id) ?? 0) === max)!
+      return pick(ctx, t, '人狼CO者に先行票があるため、票を散らさないよう合わせる（11-6）')
+    }
+  }
 
   // 1. 確定人狼（自分の人狼結果を最優先。途中得票0でも投票する）。
   const ownWolfTargets = allowed.filter((id) => ownWolfIds.has(id))
