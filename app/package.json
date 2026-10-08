@@ -13,7 +13,9 @@
     "electron": "npm run build:electron && electron .",
     "dist:win": "npm run build:electron && electron-builder --win",
     "build:standalone": "tsc -b && vite build --mode standalone",
-    "dist:zip": "npm run build:standalone && node scripts/make-zip.mjs"
+    "dist:zip": "npm run build:standalone && node scripts/make-zip.mjs",
+    "build:wordpress": "tsc -b && vite build --mode wordpress",
+    "dist:wordpress": "npm run build:wordpress && node scripts/make-wordpress-zip.mjs"
   },
   "dependencies": {
     "react": "^19.2.8",

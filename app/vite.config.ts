@@ -8,9 +8,12 @@ import { viteSingleFile } from 'vite-plugin-singlefile'
 // サービスワーカー（PWA）は使わない。
 // --mode standalone：配布用zip向けビルド。全ファイルを1つのHTMLにまとめ、ダブルクリック（file://）で
 // 通信なしに開けるようにする。サービスワーカー（PWA）は使わない。
+// --mode wordpress：WordPressと同じサーバーの /wolf/ フォルダに置く向けのビルド。PWAはそのまま使う
+// （スマートフォンのホーム画面に追加でき、1度開けばオフラインでも動く）。
+const outDirs: Record<string, string> = { standalone: 'dist-standalone', wordpress: 'dist-wordpress' }
 export default defineConfig(({ mode }) => ({
-  base: mode === 'electron' || mode === 'standalone' ? './' : '/',
-  build: mode === 'standalone' ? { outDir: 'dist-standalone' } : undefined,
+  base: mode === 'electron' || mode === 'standalone' ? './' : mode === 'wordpress' ? '/wolf/' : '/',
+  build: outDirs[mode] ? { outDir: outDirs[mode] } : undefined,
   plugins: [
     react(),
     mode === 'standalone' && viteSingleFile(),

@@ -4,14 +4,46 @@
     {
       "name": "wolf-gm-tool",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["--prefix", "app", "run", "dev", "--", "--port", "5173"],
+      "runtimeArgs": [
+        "--prefix",
+        "app",
+        "run",
+        "dev",
+        "--",
+        "--port",
+        "5173"
+      ],
       "port": 5173
     },
     {
       "name": "wolf-gm-tool-preview",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["--prefix", "app", "run", "preview", "--", "--port", "4173"],
+      "runtimeArgs": [
+        "--prefix",
+        "app",
+        "run",
+        "preview",
+        "--",
+        "--port",
+        "4173"
+      ],
       "port": 4173
+    },
+    {
+      "name": "wolf-gm-tool-wordpress",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "--prefix",
+        "app",
+        "run",
+        "preview",
+        "--",
+        "--mode",
+        "wordpress",
+        "--port",
+        "4174"
+      ],
+      "port": 4174
     }
   ]
 }
