@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react'
 import { useGameStore } from '../store/gameStore'
 import { DEFAULT_ROLE_NAMES, type CoStatus, type ResultClaimKind, type RoleKey } from '../domain/types'
-import { elapsedMs } from '../domain/gameClock'
 import { formatWolfResult } from '../domain/resultLabel'
 import { CoBoard } from './CoBoard'
+import { canSpeak } from '../domain/speech'
 
 const CO_STATUS_LABELS: Record<CoStatus, string> = {
   active: 'CO中',
@@ -18,18 +18,6 @@ function formatCountdown(ms: number): string {
   return `${m}:${String(s).padStart(2, '0')}`
 }
 
-// ゲーム開始からの経過時間（実時刻ではなく進行の経過時間）を m:ss / h:mm:ss 形式で表示する。
-// 議論タイマーを一時停止していた時間は差し引く（止めている間は進めない）。
-function formatElapsedMs(ms: number): string {
-  const totalSec = Math.max(0, Math.round(ms / 1000))
-  const h = Math.floor(totalSec / 3600)
-  const m = Math.floor((totalSec % 3600) / 60)
-  const s = totalSec % 60
-  return h > 0
-    ? `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
-    : `${m}:${String(s).padStart(2, '0')}`
-}
-
 export function DayScreen({ onGoToVote }: { onGoToVote?: () => void }) {
   const game = useGameStore((s) => s.game)
   const retractCoRecord = useGameStore((s) => s.retractCoRecord)
@@ -42,7 +30,6 @@ export function DayScreen({ onGoToVote }: { onGoToVote?: () => void }) {
   const updateMeta = useGameStore((s) => s.updateMeta)
 
   const roleName = (r: RoleKey) => game.meta.roleNames[r] ?? DEFAULT_ROLE_NAMES[r]
-  const formatTime = (iso: string) => formatElapsedMs(elapsedMs(game.meta.createdAt, iso, game.pauseIntervals))
   const kindLabel = (kind: ResultClaimKind) => roleName(kind === 'guard' ? 'bodyguard' : kind)
 
   // タイマー表示を1秒ごとに更新するためだけの再描画トリガー。
@@ -116,7 +103,6 @@ export function DayScreen({ onGoToVote }: { onGoToVote?: () => void }) {
           <thead>
             <tr>
               <th>日</th>
-              <th>時刻</th>
               <th>投票番目</th>
               <th>プレイヤー</th>
               <th>主張役職</th>
@@ -132,13 +118,12 @@ export function DayScreen({ onGoToVote }: { onGoToVote?: () => void }) {
                 return (
                   <tr key={c.id}>
                     <td>{c.day}日目</td>
-                    <td>{formatTime(c.recordedAt)}</td>
                     <td>{c.afterVoteCount != null ? `${c.afterVoteCount}票目の後` : '－'}</td>
                     <td>{p?.displayName}</td>
                     <td>
                       {roleName(c.claimedRole)}（{CO_STATUS_LABELS[c.status]}）
                     </td>
-                    <td>{c.status === 'active' && p?.alive && <button onClick={() => retractCoRecord(c.id)}>撤回</button>}</td>
+                    <td>{c.status === 'active' && p && canSpeak(game, p.id) && <button onClick={() => retractCoRecord(c.id)}>撤回</button>}</td>
                   </tr>
                 )
               })}
@@ -154,7 +139,6 @@ export function DayScreen({ onGoToVote }: { onGoToVote?: () => void }) {
           <thead>
             <tr>
               <th>日</th>
-              <th>時刻</th>
               <th>投票番目</th>
               <th>プレイヤー</th>
               <th>状態</th>
@@ -170,7 +154,6 @@ export function DayScreen({ onGoToVote }: { onGoToVote?: () => void }) {
                 return (
                   <tr key={c.id}>
                     <td>{c.day}日目</td>
-                    <td>{formatTime(c.recordedAt)}</td>
                     <td>{c.afterVoteCount != null ? `${c.afterVoteCount}票目の後` : '－'}</td>
                     <td>{p?.displayName}</td>
                     <td>{CO_STATUS_LABELS[c.status]}</td>
@@ -200,7 +183,6 @@ export function DayScreen({ onGoToVote }: { onGoToVote?: () => void }) {
         <table>
           <thead>
             <tr>
-              <th>時刻</th>
               <th>公表日</th>
               <th>対象日</th>
               <th>内容</th>
@@ -218,11 +200,10 @@ export function DayScreen({ onGoToVote }: { onGoToVote?: () => void }) {
                 const content = `${kindLabel(c.kind)}：${speaker?.displayName}→${target?.displayName}：${resultText}`
                 return (
                   <tr key={c.id}>
-                    <td>{formatTime(c.recordedAt)}</td>
                     <td>{c.announcedDay}日目</td>
                     <td>{c.targetDay}番目</td>
                     <td>{c.retracted ? `(訂正済) ${content}` : content}</td>
-                    <td>{!c.retracted && speaker?.alive && <button onClick={() => retractResultClaim(c.id)}>訂正</button>}</td>
+                    <td>{!c.retracted && speaker && canSpeak(game, speaker.id) && <button onClick={() => retractResultClaim(c.id)}>訂正</button>}</td>
                   </tr>
                 )
               })}

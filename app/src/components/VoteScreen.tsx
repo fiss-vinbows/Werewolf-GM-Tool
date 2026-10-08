@@ -4,6 +4,7 @@ import { ROLE_COLORS } from '../domain/roleColors'
 import { DEFAULT_ROLE_NAMES, type Player, type PlayerId, type RoleKey, type VoteRound } from '../domain/types'
 import { PlayerName } from './PlayerName'
 import { isGivingLastWords } from '../domain/speech'
+import { formatWolfResult } from '../domain/resultLabel'
 
 const ROLE_ORDER: RoleKey[] = ['wolf', 'madman', 'seer', 'medium', 'bodyguard', 'villager']
 
@@ -329,19 +330,24 @@ function VoteRoundBoard({ round, alivePlayers }: { round: VoteRound; alivePlayer
   )
 }
 
-// 処刑者の遺言でのCO（夜フェイズへ進むまでの間だけ記録できる）。
-// 結果の公表（予言・霊媒の判定）は「昼・CO」タブのCOボードで、遺言中の処刑者からドラッグして記録する。
+// 処刑者の遺言でのCOと結果の発表（夜フェイズへ進むまでの間だけ記録できる）。
+// COした役職に応じて、予言者なら白・黒、霊媒師なら処刑者への白・黒、狩人なら○・Gをこの場で発表できる。
 function LastWordsPanel() {
   const game = useGameStore((s) => s.game)
   const addCoRecord = useGameStore((s) => s.addCoRecord)
   const changeCoRecord = useGameStore((s) => s.changeCoRecord)
+  const addJudgmentByDrag = useGameStore((s) => s.addJudgmentByDrag)
+  const [targetId, setTargetId] = useState('')
   const executed = game.players.find((p) => isGivingLastWords(game, p.id))
   if (!executed) return null
   const roleName = (r: RoleKey) => game.meta.roleNames[r] ?? DEFAULT_ROLE_NAMES[r]
   const activeCo = game.coRecords.find((c) => c.playerId === executed.id && c.status === 'active')
+  const coRole = activeCo?.claimedRole
+  const judgeKind = coRole === 'seer' || coRole === 'medium' || coRole === 'bodyguard' ? coRole : null
 
   function record(role: RoleKey) {
     if (!executed) return
+    setTargetId('')
     if (activeCo) {
       if (activeCo.claimedRole === role) return
       changeCoRecord({ previousCoId: activeCo.id, playerId: executed.id, claimedRole: role, day: game.day, note: '遺言' })
@@ -350,28 +356,76 @@ function LastWordsPanel() {
     }
   }
 
+  // 発表できる対象：予言は生存者、霊媒は処刑された人、護衛先（○・G）は死亡者を含む全員（本人以外）。
+  const targets = game.players.filter((p) => {
+    if (p.id === executed.id) return false
+    if (judgeKind === 'seer') return p.alive
+    if (judgeKind === 'medium') return !p.alive && p.death?.trueCause === 'execution'
+    return true
+  })
+  const claimKind = judgeKind === 'bodyguard' ? 'guard' : judgeKind
+  const announced = game.resultClaims.filter((c) => c.speakerId === executed.id && c.kind === claimKind && !c.retracted)
+  const resultLabel = (r: string) =>
+    r === 'guarded' ? '○（護衛）' : r === 'guard-success' ? 'G（護衛成功）' : formatWolfResult(r as 'wolf' | 'not-wolf', game.meta.resultLabelStyle)
+
+  function announce(result: 'wolf' | 'not-wolf' | 'guarded' | 'guard-success') {
+    if (!executed || !judgeKind || !targetId) return
+    addJudgmentByDrag(executed.id, targetId, result, judgeKind)
+    setTargetId('')
+  }
+
   return (
     <section className="card">
-      <h2>遺言でのCO</h2>
+      <h2>遺言</h2>
       <p>
         処刑された <PlayerName player={executed} /> が遺言で役職をCOした場合に記録します。
         {activeCo && <>現在のCO：<strong>{roleName(activeCo.claimedRole)}</strong></>}
       </p>
       <div className="row">
         {ROLE_ORDER.map((r) => (
-          <button
-            key={r}
-            style={{ borderColor: ROLE_COLORS[r] }}
-            disabled={activeCo?.claimedRole === r}
-            onClick={() => record(r)}
-          >
+          <button key={r} style={{ borderColor: ROLE_COLORS[r] }} disabled={activeCo?.claimedRole === r} onClick={() => record(r)}>
             {roleName(r)}CO
           </button>
         ))}
       </div>
-      <p className="hint">
-        遺言での結果の公表（予言・霊媒の判定）は「昼・CO」タブのCOボードで記録できます。夜フェイズへ進むと、遺言は記録できなくなります。
-      </p>
+
+      {judgeKind && (
+        <div style={{ marginTop: 12 }}>
+          <h3>{roleName(judgeKind)}としての結果の発表</h3>
+          <div className="row">
+            <select value={targetId} onChange={(e) => setTargetId(e.target.value)} style={{ width: 180 }} aria-label="発表の対象">
+              <option value="">対象を選ぶ</option>
+              {targets.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.displayName}
+                  {p.alive ? '' : '（死亡）'}
+                </option>
+              ))}
+            </select>
+            {judgeKind === 'bodyguard' ? (
+              <>
+                <button disabled={!targetId} onClick={() => announce('guarded')}>○（護衛した）</button>
+                <button disabled={!targetId} onClick={() => announce('guard-success')}>G（護衛成功）</button>
+              </>
+            ) : (
+              <>
+                <button disabled={!targetId} onClick={() => announce('not-wolf')}>{formatWolfResult('not-wolf', game.meta.resultLabelStyle)}</button>
+                <button disabled={!targetId} onClick={() => announce('wolf')}>{formatWolfResult('wolf', game.meta.resultLabelStyle)}</button>
+              </>
+            )}
+          </div>
+          {announced.length > 0 && (
+            <ul>
+              {announced.map((c) => (
+                <li key={c.id}>
+                  {game.players.find((p) => p.id === c.targetId)?.displayName}：{resultLabel(c.result)}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+      <p className="hint">夜フェイズへ進むと、遺言は記録できなくなります。結果の訂正は「昼・CO」タブの公表結果の履歴から行えます。</p>
     </section>
   )
 }
