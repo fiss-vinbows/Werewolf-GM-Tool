@@ -62,22 +62,21 @@ npm run dist:win   # app/release/ にインストーラー版とポータブル�
 
 ## WordPressのサーバーに置く（PC・スマートフォン両対応）
 
-WordPressを設置したレンタルサーバーの `/wolf/` フォルダに置くと、`https://（サイト）/wolf/` で
-PC・スマートフォンのブラウザから使えます。スマートフォンでは「ホーム画面に追加」でアプリのように使え、
-1度開けばオフラインでも動きます（PWA）。
+WordPressのサーバーの `wp-content/werewolf` フォルダに置き、
+`https://fiss-vinbows.jp/wp-content/werewolf/` でPC・スマートフォンのブラウザから使います。
+スマートフォンでは「ホーム画面に追加」でアプリのように使え、1度開けばオフラインでも動きます（PWA）。
 
 ```bash
 npm --prefix app run dist:wordpress
 ```
 
-1. `app/release/WerewolfGMTool-WordPress-<版>.zip` ができます（中身は `wolf` フォルダ）。
-2. サーバーのファイルマネージャー（またはFTP）で、WordPressと同じ階層（`wp-config.php` があるフォルダ。
-   多くは `public_html` やドメイン名のフォルダ）にzipをアップロードして展開します。
-3. `https://（サイト）/wolf/` を開いて確認します。WordPressのメニューにこのURLへのリンクを追加すると便利です。
+1. `app/release/WerewolfGMTool-WordPress-<版>.zip` ができます（中身は `werewolf` フォルダ）。
+2. サーバーのファイルマネージャー（またはFTP）で、WordPressの `wp-content` フォルダにzipをアップロードして展開します。
+3. `https://fiss-vinbows.jp/wp-content/werewolf/` を開いて確認します。WordPressのメニューにこのURLへのリンクを追加すると便利です。
 
 - 記録はそれぞれの端末のブラウザ内に保存されます。PCとスマートフォンで記録は共有されません。
-- 更新するときは、同じ手順で `wolf` フォルダを上書きします。開いている端末は次回起動時に新しい版へ切り替わります。
-- 置き場所を `/wolf/` 以外にする場合は、`app/vite.config.ts` の `'/wolf/'` を変更してからビルドします。
+- 更新するときは、同じ手順で `werewolf` フォルダを上書きします。開いている端末は次回起動時に新しい版へ切り替わります。
+- 置き場所を変える場合は、`app/vite.config.ts` の `WORDPRESS_BASE` と `app/scripts/make-wordpress-zip.mjs` のフォルダ名を変更してからビルドします。
 
 ## ディレクトリ構成
 

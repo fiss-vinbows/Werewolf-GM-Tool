@@ -8,11 +8,14 @@ import { viteSingleFile } from 'vite-plugin-singlefile'
 // サービスワーカー（PWA）は使わない。
 // --mode standalone：配布用zip向けビルド。全ファイルを1つのHTMLにまとめ、ダブルクリック（file://）で
 // 通信なしに開けるようにする。サービスワーカー（PWA）は使わない。
-// --mode wordpress：WordPressと同じサーバーの /wolf/ フォルダに置く向けのビルド。PWAはそのまま使う
+// --mode wordpress：WordPressのサーバーの wp-content/werewolf フォルダに置く向けのビルド
+// （https://fiss-vinbows.jp/wp-content/werewolf/）。PWAはそのまま使う
 // （スマートフォンのホーム画面に追加でき、1度開けばオフラインでも動く）。
 const outDirs: Record<string, string> = { standalone: 'dist-standalone', wordpress: 'dist-wordpress' }
+// WordPress版の置き場所（URLのパス）。変更する場合は scripts/make-wordpress-zip.mjs のフォルダ名も合わせる。
+const WORDPRESS_BASE = '/wp-content/werewolf/'
 export default defineConfig(({ mode }) => ({
-  base: mode === 'electron' || mode === 'standalone' ? './' : mode === 'wordpress' ? '/wolf/' : '/',
+  base: mode === 'electron' || mode === 'standalone' ? './' : mode === 'wordpress' ? WORDPRESS_BASE : '/',
   build: outDirs[mode] ? { outDir: outDirs[mode] } : undefined,
   plugins: [
     react(),
