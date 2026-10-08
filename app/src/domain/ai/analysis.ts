@@ -32,7 +32,8 @@ export function singleCoHolders(view: AiView): Map<PlayerId, RoleKey> {
     const active = activeClaimants(view, role)
     if (ever.length !== 1 || active.length !== 1) continue
     const first = view.coRecords.filter((c) => c.playerId === active[0] && c.claimedRole === role).sort((a, b) => a.eventOrder - b.eventOrder)[0]
-    if (first?.day !== 1) continue
+    // 狩人は2日目以降のCOでも、対抗が出ていなければ単独CO者として守る（2026-10-08確定）。
+    if (first?.day !== 1 && role !== 'bodyguard') continue
     // 自分の実役職と矛盾するCOは真扱いしない（自分が本物ならその人は騙り）。
     if (view.selfRole === role && active[0] !== view.selfId) continue
     result.set(active[0], role)
@@ -133,7 +134,11 @@ export function confirmedWhites(view: AiView): Map<PlayerId, string> {
   const holders = singleCoHolders(view)
   for (const [id, role] of holders) {
     // 初日は「暫定白」。投票対象外という扱いは同じ（方針A）。
-    result.set(id, view.day <= 1 ? `初日単独${roleLabel(role)}CO（暫定白）` : `初日から単独${roleLabel(role)}CO（確定白）`)
+    const coDay = view.coRecords.filter((c) => c.playerId === id && c.claimedRole === role).sort((a, b) => a.eventOrder - b.eventOrder)[0]?.day ?? 1
+    result.set(
+      id,
+      coDay > 1 ? `単独${roleLabel(role)}CO（${coDay}日目から対抗なし）` : view.day <= 1 ? `初日単独${roleLabel(role)}CO（暫定白）` : `初日から単独${roleLabel(role)}CO（確定白）`,
+    )
   }
   // AI視点の真予言者本人と、その白（2026-10-05追加）。
   const { trueSeer } = aiKnownSeerTruth(view)

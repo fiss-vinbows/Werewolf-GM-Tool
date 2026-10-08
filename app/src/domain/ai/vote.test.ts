@@ -511,7 +511,8 @@ describe('AI視点の真偽（2026-10-05、実ゲームの再現）', () => {
       expect(reasons).toContain('余裕1')
       expect(reasons).toContain('プレイヤー11（AI視点の真予言者')
       expect(reasons).toContain('プレイヤー2（AI視点の真予言者プレイヤー11の白）')
-      expect(reasons).toContain('プレイヤー8（AI視点の真予言者プレイヤー11の白）')
+      // p8（p8）は単独狩人COとして投票対象外（真予言者の白でもある）。
+      expect(reasons).toContain('プレイヤー8（単独狩人CO')
     }
   })
   it('4日目：真予言者の黒を確定人狼として投票する（余裕1）', () => {
@@ -533,5 +534,15 @@ describe('AI視点の真偽（2026-10-05、実ゲームの再現）', () => {
     g.resultClaims.push({ id: 'cg', eventOrder: ++order, coId: '', kind: 'guard', speakerId: 'p8', targetId: 'p9', targetDay: 1, announcedDay: 3, result: 'guard-success', recordedAt: '', retracted: false })
     const r = round(g, 'normal', [['p10', 'p9']])
     expect(decide(g, 'p13', r).reasons.join()).toContain('プレイヤー9（狩人COの護衛成功先（G））')
+  })
+  it('2日目以降に単独で狩人COした人も、対抗がなければ投票対象外', () => {
+    const g = setup('p13', 3)
+    co(g, 'p8', 'bodyguard', 3)
+    const r = round(g, 'normal', [['p10', 'p8']])
+    const reasons = decide(g, 'p13', r).reasons.join()
+    expect(reasons).toContain('プレイヤー8（単独狩人CO（3日目から対抗なし））')
+    // 対抗が出たら守らない。
+    co(g, 'p9', 'bodyguard', 3)
+    expect(decide(g, 'p13', round(g, 'normal', [['p10', 'p8']])).reasons.join()).not.toContain('単独狩人CO')
   })
 })
