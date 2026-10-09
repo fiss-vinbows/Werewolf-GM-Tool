@@ -50,6 +50,19 @@ describe('スプレッドシート用CSV', () => {
     expect(lines[7]).toBe('プレイヤー7,村人,AI,狩人,プレイヤー9,プレイヤー10（護衛）,,,,,,')
     expect(lines[11]).toBe('プレイヤー11,狂人,騙り予言者2,,,,,,,,,')
     expect(lines[14]).toBe('プレイヤー14,人狼,騙り予言者1,,,,,,,,,')
-    expect(lines.length).toBe(15)
+    // 表の下の対戦情報。
+    expect(lines[15]).toBe('')
+    expect(lines[16].startsWith('対戦日,')).toBe(true)
+    expect(lines[18]).toBe('勝利陣営,（進行中）')
+    expect(lines[19]).toBe('終了日,2日目')
+    expect(lines[20]).toBe('人数,14人')
+  })
+  it('AIの投票先の行と、騙り以外のCOを補足に書く', () => {
+    const g = sampleGame()
+    g.voteRounds[0].votes = [{ voterId: 'p7', targetId: 'p11', recordedAt: '', order: 1, globalOrder: 1 }]
+    g.coRecords.push({ id: 'cox', eventOrder: 99, day: 2, claimedRole: 'villager', playerId: 'p14', recordedAt: '', status: 'active', supersedes: null, note: '遺言', afterVoteCount: null })
+    const lines = exportResultCsv(g).trim().split('\r\n')
+    expect(lines.find((l) => l.includes('AI投票'))).toBe('プレイヤー8,狩人,,AI投票,プレイヤー11,,,,,,,')
+    expect(lines[14]).toBe('プレイヤー14,人狼,騙り予言者1・村人CO（遺言）,,,,,,,,,')
   })
 })

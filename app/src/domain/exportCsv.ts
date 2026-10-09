@@ -5,6 +5,8 @@
 //   予言者：「初日」に初日白の通知先、2日目以降は前の夜の予言結果（初日白の通知を初日に置くため1日ずれる）
 //   霊媒師・狩人：本物の役職者のその夜の結果（狩人は護衛先、成功なら「（護衛）」）
 //   騙り○○N：偽物の公表結果を公表した順に（死亡した次の日は「－」）
+//   AI投票：AIがその日に投票した相手（AIがいる対戦のみ）
+// 表の下（1行空けて）：対戦日・ゲームID・勝利陣営・終了日・人数。
 import type { GameState, PlayerId, RoleKey } from './types'
 
 const JUDGE_ROLES: RoleKey[] = ['seer', 'medium', 'bodyguard']
@@ -94,14 +96,49 @@ export function exportResultCsv(game: GameState): string {
     }
   }
 
+  // AIの投票先（その日の最後のラウンド。決選になった日は決選の投票先）。
+  for (const ai of players.filter((p) => p.isAi)) {
+    eventRows.push([
+      players.filter((p) => p.isAi).length > 1 ? `AI投票（${ai.displayName}）` : 'AI投票',
+      dayHeaders.map((_, i) => {
+        const last = game.voteRounds.filter((r) => r.day === i + 1 && r.votes.some((v) => v.voterId === ai.id)).at(-1)
+        return nameOf(last?.votes.find((v) => v.voterId === ai.id)?.targetId)
+      }),
+    ])
+  }
+
+  // C列（補足）：AI、騙りの番号、それ以外のCO（実際の役職と違う役職のCO。遺言なら「（遺言）」）。
+  const notesOf = (id: PlayerId): string => {
+    const p = game.players.find((x) => x.id === id)!
+    const notes = [...(p.isAi ? ['AI'] : []), ...(fakeLabel.get(id) ?? [])]
+    const seen = new Set<string>()
+    for (const c of [...game.coRecords].sort((a, b) => a.eventOrder - b.eventOrder)) {
+      if (c.playerId !== id || c.claimedRole === p.actualRole || JUDGE_ROLES.includes(c.claimedRole)) continue
+      const label = `${roleName(c.claimedRole)}CO${c.note === '遺言' ? '（遺言）' : ''}`
+      if (!seen.has(label)) notes.push(label)
+      seen.add(label)
+    }
+    return notes.join('・')
+  }
+
   const rows: string[][] = [['プレイヤー', '役職', '', '', ...dayHeaders]]
   const n = Math.max(players.length, eventRows.length)
   for (let i = 0; i < n; i++) {
     const p = players[i]
-    const notes = p ? [...(p.isAi ? ['AI'] : []), ...(fakeLabel.get(p.id) ?? [])].join('・') : ''
-    const left = p ? [p.displayName, p.actualRole ? roleName(p.actualRole) : '', notes] : ['', '', '']
+    const left = p ? [p.displayName, p.actualRole ? roleName(p.actualRole) : '', notesOf(p.id)] : ['', '', '']
     const ev = eventRows[i]
     rows.push([...left, ev ? ev[0] : '', ...(ev ? ev[1] : dayHeaders.map(() => ''))])
   }
+
+  // 表の下に1行空けて、対戦の情報をまとめる。
+  const created = new Date(game.meta.createdAt)
+  const date = Number.isNaN(created.getTime()) ? '' : created.toLocaleDateString('ja-JP', { timeZone: 'Asia/Tokyo' })
+  const winner = game.finished ? (game.winner === 'village' ? '村人陣営' : game.winner === 'wolf' ? '人狼陣営' : '') : '（進行中）'
+  rows.push([])
+  rows.push(['対戦日', date])
+  rows.push(['ゲームID', game.meta.gameId])
+  rows.push(['勝利陣営', winner])
+  rows.push(['終了日', `${game.day}日目`])
+  rows.push(['人数', `${players.length}人`])
   return rows.map((r) => r.map(csvCell).join(',')).join('\r\n') + '\r\n'
 }
