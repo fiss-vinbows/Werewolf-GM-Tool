@@ -5,6 +5,7 @@ import { DEFAULT_ROLE_NAMES, type Player, type PlayerId, type RoleKey, type Vote
 import { PlayerName } from './PlayerName'
 import { isGivingLastWords } from '../domain/speech'
 import { formatWolfResult } from '../domain/resultLabel'
+import { startDragAutoScroll } from './dragAutoScroll'
 
 const ROLE_ORDER: RoleKey[] = ['wolf', 'madman', 'seer', 'medium', 'bodyguard', 'villager']
 
@@ -127,7 +128,18 @@ function VoteRoundBoard({ round, alivePlayers }: { round: VoteRound; alivePlayer
     draggingRef.current = dragging
     setGhost({ label, color, x: e.clientX, y: e.clientY })
 
+    // ドラッグ中に画面の上端・下端へ近づいたら自動スクロールする（スマートフォン対応）。
+    let lastX = e.clientX
+    let lastY = e.clientY
+    const scroller = startDragAutoScroll(() => {
+      const zone = (document.elementFromPoint(lastX, lastY) as HTMLElement | null)?.closest(`[${zoneAttrName}]`) as HTMLElement | null
+      setHoverTarget(zone?.getAttribute(zoneAttrName) ?? null)
+    })
+
     const handleMove = (ev: PointerEvent) => {
+      lastX = ev.clientX
+      lastY = ev.clientY
+      scroller.update(ev.clientY)
       if (!draggingRef.current) return
       setGhost((g) => (g ? { ...g, x: ev.clientX, y: ev.clientY } : g))
       const el = document.elementFromPoint(ev.clientX, ev.clientY) as HTMLElement | null
@@ -135,8 +147,10 @@ function VoteRoundBoard({ round, alivePlayers }: { round: VoteRound; alivePlayer
       setHoverTarget(zone?.getAttribute(zoneAttrName) ?? null)
     }
     const handleUp = (ev: PointerEvent) => {
+      scroller.stop()
       window.removeEventListener('pointermove', handleMove)
       window.removeEventListener('pointerup', handleUp)
+      window.removeEventListener('pointercancel', handleUp)
       const drag = draggingRef.current
       draggingRef.current = null
       setGhost(null)
@@ -156,6 +170,8 @@ function VoteRoundBoard({ round, alivePlayers }: { round: VoteRound; alivePlayer
 
     window.addEventListener('pointermove', handleMove)
     window.addEventListener('pointerup', handleUp)
+    // ブラウザがドラッグを中断した場合もドラッグを終える。
+    window.addEventListener('pointercancel', handleUp)
   }
 
   function coChipOf(playerId: PlayerId) {
@@ -356,10 +372,9 @@ function LastWordsPanel() {
     }
   }
 
-  // 発表できる対象：予言は生存者、霊媒は処刑された人、護衛先（○・G）は死亡者を含む全員（本人以外）。
+  // 発表できる対象：霊媒は処刑された人、予言と護衛先（○・G）は死亡者を含む全員（本人以外）。
   const targets = game.players.filter((p) => {
     if (p.id === executed.id) return false
-    if (judgeKind === 'seer') return p.alive
     if (judgeKind === 'medium') return !p.alive && p.death?.trueCause === 'execution'
     return true
   })

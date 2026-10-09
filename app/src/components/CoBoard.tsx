@@ -4,6 +4,7 @@ import { ROLE_COLORS } from '../domain/roleColors'
 import { DEFAULT_ROLE_NAMES, ROLE_LAYOUT_ROWS, type Player, type PlayerId, type RoleKey } from '../domain/types'
 import { PlayerName } from './PlayerName'
 import { canSpeak } from '../domain/speech'
+import { startDragAutoScroll } from './dragAutoScroll'
 
 const ROLE_ORDER: RoleKey[] = ['wolf', 'madman', 'seer', 'medium', 'bodyguard', 'villager']
 // 予言者・霊媒師は白丸／黒丸の2アイコン、狩人は護衛順を示す○アイコン1つだけを使う（要求7・要求4）。
@@ -55,7 +56,18 @@ export function CoBoard() {
     draggingRef.current = dragging
     setGhost({ label, color, x: e.clientX, y: e.clientY })
 
+    // ドラッグ中に画面の上端・下端へ近づいたら自動スクロールする（スマートフォン対応）。
+    let lastX = e.clientX
+    let lastY = e.clientY
+    const scroller = startDragAutoScroll(() => {
+      const target = (document.elementFromPoint(lastX, lastY) as HTMLElement | null)?.closest('[data-playerdrop]') as HTMLElement | null
+      setHoverPlayerId(target?.dataset.playerdrop ?? null)
+    })
+
     const handleMove = (ev: PointerEvent) => {
+      lastX = ev.clientX
+      lastY = ev.clientY
+      scroller.update(ev.clientY)
       if (!draggingRef.current) return
       setGhost((g) => (g ? { ...g, x: ev.clientX, y: ev.clientY } : g))
       const el = document.elementFromPoint(ev.clientX, ev.clientY) as HTMLElement | null
@@ -63,8 +75,10 @@ export function CoBoard() {
       setHoverPlayerId(target?.dataset.playerdrop ?? null)
     }
     const handleUp = (ev: PointerEvent) => {
+      scroller.stop()
       window.removeEventListener('pointermove', handleMove)
       window.removeEventListener('pointerup', handleUp)
+      window.removeEventListener('pointercancel', handleUp)
       const drag = draggingRef.current
       draggingRef.current = null
       setGhost(null)
@@ -82,17 +96,17 @@ export function CoBoard() {
         if (drag.judgeKind === 'medium') {
           // 霊媒は処刑されたプレイヤーだけに色を付けられる（襲撃で死亡した人は対象外）。
           if (targetPlayer.alive || targetPlayer.death?.trueCause !== 'execution') return
-        } else if (drag.judgeKind === 'seer') {
-          // 予言結果の主張は生存者のみを対象にする。
-          if (!targetPlayer.alive) return
         }
-        // 護衛先の履歴は、すでに死亡したプレイヤーにも記録できる（過去の夜の護衛先を後から発表するため）。
+        // 予言結果と護衛先は、すでに死亡したプレイヤーにも記録できる（前夜の予言先が襲撃された場合や、
+        // 過去の結果を後から発表する場合のため。2026-10-09）。
         addJudgmentByDrag(drag.speakerId, playerId, drag.result, drag.judgeKind)
       }
     }
 
     window.addEventListener('pointermove', handleMove)
     window.addEventListener('pointerup', handleUp)
+    // ブラウザがドラッグを中断した場合もドラッグを終える。
+    window.addEventListener('pointercancel', handleUp)
   }
 
   function PlayerCard({ p }: { p: Player }) {
@@ -207,7 +221,7 @@ export function CoBoard() {
       <p className="hint">
         役職ラベルをプレイヤー名へドラッグするとCOを記録します。同じ人へ別の役職を重ねるとスライドとして記録します。
         予言者・霊媒師CO した人は名前の両端に白丸／黒丸、狩人CO した人は左側に○（護衛先）・右側にG（護衛成功した先）が出るので、対象者へドラッグすると判定・護衛順を記録できます（記録した順番を対象日として扱います）。
-        予言は生存者のみ、霊媒は処刑されたプレイヤーのみが対象です。護衛先（○・G）は死亡したプレイヤーにも記録できます。COの新規記録は生存者にのみ行え、死亡したプレイヤーは撤回もできません。
+        霊媒は処刑されたプレイヤーのみが対象です。予言結果と護衛先（○・G）は死亡したプレイヤーにも記録できます。COの新規記録は生存者にのみ行え、死亡したプレイヤーは撤回もできません。
       </p>
 
       <div className="co-source-row">

@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react'
 import { useGameStore } from '../store/gameStore'
 import { DEFAULT_ROLE_NAMES, ROLE_LAYOUT_ROWS, roleCountsFor, type Player, type PlayerId, type RoleKey } from '../domain/types'
+import { startDragAutoScroll } from './dragAutoScroll'
 
 type DropZoneKey = RoleKey | 'pool'
 
@@ -43,13 +44,19 @@ export function RoleBoard() {
     draggingRef.current = player.id
     setGhost({ player, x: e.clientX, y: e.clientY })
 
+    // ドラッグ中に画面の上端・下端へ近づいたら自動スクロールする（スマートフォン対応）。
+    const scroller = startDragAutoScroll()
+
     const handleMove = (ev: PointerEvent) => {
+      scroller.update(ev.clientY)
       if (!draggingRef.current) return
       setGhost((g) => (g ? { ...g, x: ev.clientX, y: ev.clientY } : g))
     }
     const handleUp = (ev: PointerEvent) => {
+      scroller.stop()
       window.removeEventListener('pointermove', handleMove)
       window.removeEventListener('pointerup', handleUp)
+      window.removeEventListener('pointercancel', handleUp)
       const playerId = draggingRef.current
       draggingRef.current = null
       setGhost(null)
@@ -63,6 +70,8 @@ export function RoleBoard() {
 
     window.addEventListener('pointermove', handleMove)
     window.addEventListener('pointerup', handleUp)
+    // ブラウザがドラッグを中断した場合もドラッグを終える。
+    window.addEventListener('pointercancel', handleUp)
   }
 
   function Chip({ player }: { player: Player }) {

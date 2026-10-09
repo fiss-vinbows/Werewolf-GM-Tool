@@ -654,3 +654,42 @@ button {
 .ai-log-superseded {
   opacity: 0.5;
 }
+
+/* スマートフォン（幅600px以下）向けの詰めた表示（2026-10-09）。PC版の表示は変えない。 */
+@media (max-width: 600px) {
+  /* 投票：投票先を横2列に並べ、13人でも画面に収まりやすくする。 */
+  .vote-pool,
+  .vote-targets {
+    flex: 1 1 100%;
+    min-width: 0;
+  }
+  .vote-targets {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 4px;
+  }
+  .vote-target-zone {
+    min-width: 0;
+  }
+
+  /* 昼のCOボード：「元の役職」の文字を省き（区分は左端の色の帯で示す）、カードを2列に詰める。 */
+  .role-area-label {
+    display: none;
+  }
+  .role-area {
+    padding: 4px;
+  }
+  .role-area-row {
+    gap: 6px;
+  }
+  .role-area-row > .role-area {
+    flex: 1 1 100%;
+  }
+  .player-drop-row {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .player-drop-target {
+    min-width: 0;
+  }
+}
