@@ -2,6 +2,10 @@
 
 アルティメット人狼13〜14人向けの、GM専用の進行記録ツールです。React + TypeScript + Vite + PWAで実装しており、オフラインでも動作します。
 
+- バージョン：1.0.0
+- ホームページ：https://fiss-vinbows.jp/werewolf-game/
+- ライセンス：MIT License（[LICENSE](LICENSE)）
+
 ## 現状
 
 第1段階（GM用記録ツール）を実装済みです。プレイヤー登録・役職割り振り・CO記録・投票・夜フェイズの自動判定・勝敗判定・記録の書き出しまで一通り動作します。
@@ -81,4 +85,10 @@ npm --prefix app run dist:wordpress
 ## ディレクトリ構成
 
 - `app/` — Reactアプリ本体
-- `input/` — 仕様検討・引き継ぎ資料（日本語）
+- `input/` — 仕様検討資料（日本語）
+
+## ライセンス
+
+MIT License です。詳しくは [LICENSE](LICENSE) を参照してください。
+
+Copyright (c) 2026 fiss-vinbows

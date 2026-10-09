@@ -25,6 +25,10 @@ export function InfoScreen() {
                 投票 {AI_VOTE_POLICY_VERSION}／夜行動 {AI_NIGHT_POLICY_VERSION}
               </td>
             </tr>
+            <tr>
+              <th>ライセンス</th>
+              <td>{APP_INFO.license}</td>
+            </tr>
             {APP_INFO.author && (
               <tr>
                 <th>製作者</th>
