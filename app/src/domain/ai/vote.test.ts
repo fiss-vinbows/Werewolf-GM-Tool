@@ -511,7 +511,7 @@ describe('AI視点の真偽（2026-10-05、実ゲームの再現）', () => {
       expect(reasons).toContain('余裕1')
       expect(reasons).toContain('プレイヤー11（AI視点の真予言者')
       expect(reasons).toContain('プレイヤー2（AI視点の真予言者プレイヤー11の白）')
-      // p8（p8）は単独狩人COとして投票対象外（真予言者の白でもある）。
+      // p8は単独狩人COとして投票対象外（真予言者の白でもある）。
       expect(reasons).toContain('プレイヤー8（単独狩人CO')
     }
   })
