@@ -47,6 +47,7 @@ export function VoteScreen({ onGoToNight }: { onGoToNight?: () => void }) {
         <VoteRoundBoard key={round.id} round={round} alivePlayers={alivePlayers} />
       ))}
 
+      <VoteJudgePanel />
       {latestRoundResolved && <LastWordsPanel />}
 
       {latestRoundResolved && game.finished && (
@@ -368,8 +369,6 @@ function LastWordsPanel() {
   const game = useGameStore((s) => s.game)
   const addCoRecord = useGameStore((s) => s.addCoRecord)
   const changeCoRecord = useGameStore((s) => s.changeCoRecord)
-  const addJudgmentByDrag = useGameStore((s) => s.addJudgmentByDrag)
-  const [targetId, setTargetId] = useState('')
   const executed = game.players.find((p) => isGivingLastWords(game, p.id))
   if (!executed) return null
   const roleName = (r: RoleKey) => game.meta.roleNames[r] ?? DEFAULT_ROLE_NAMES[r]
@@ -379,30 +378,12 @@ function LastWordsPanel() {
 
   function record(role: RoleKey) {
     if (!executed) return
-    setTargetId('')
     if (activeCo) {
       if (activeCo.claimedRole === role) return
       changeCoRecord({ previousCoId: activeCo.id, playerId: executed.id, claimedRole: role, day: game.day, note: '遺言' })
     } else {
       addCoRecord({ playerId: executed.id, claimedRole: role, day: game.day, note: '遺言' })
     }
-  }
-
-  // 発表できる対象：霊媒は処刑された人、予言と護衛先（○・G）は死亡者を含む全員（本人以外）。
-  const targets = game.players.filter((p) => {
-    if (p.id === executed.id) return false
-    if (judgeKind === 'medium') return !p.alive && p.death?.trueCause === 'execution'
-    return true
-  })
-  const claimKind = judgeKind === 'bodyguard' ? 'guard' : judgeKind
-  const announced = game.resultClaims.filter((c) => c.speakerId === executed.id && c.kind === claimKind && !c.retracted)
-  const resultLabel = (r: string) =>
-    r === 'guarded' ? '○（護衛）' : r === 'guard-success' ? 'G（護衛成功）' : formatWolfResult(r as 'wolf' | 'not-wolf', game.meta.resultLabelStyle)
-
-  function announce(result: 'wolf' | 'not-wolf' | 'guarded' | 'guard-success') {
-    if (!executed || !judgeKind || !targetId) return
-    addJudgmentByDrag(executed.id, targetId, result, judgeKind)
-    setTargetId('')
   }
 
   return (
@@ -423,40 +404,103 @@ function LastWordsPanel() {
       {judgeKind && (
         <div style={{ marginTop: 12 }}>
           <h3>{roleName(judgeKind)}としての結果の発表</h3>
-          <div className="row">
-            <select value={targetId} onChange={(e) => setTargetId(e.target.value)} style={{ width: 180 }} aria-label="発表の対象">
-              <option value="">対象を選ぶ</option>
-              {targets.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.displayName}
-                  {p.alive ? '' : '（死亡）'}
-                </option>
-              ))}
-            </select>
-            {judgeKind === 'bodyguard' ? (
-              <>
-                <button disabled={!targetId} onClick={() => announce('guarded')}>○（護衛した）</button>
-                <button disabled={!targetId} onClick={() => announce('guard-success')}>G（護衛成功）</button>
-              </>
-            ) : (
-              <>
-                <button disabled={!targetId} onClick={() => announce('not-wolf')}>{formatWolfResult('not-wolf', game.meta.resultLabelStyle)}</button>
-                <button disabled={!targetId} onClick={() => announce('wolf')}>{formatWolfResult('wolf', game.meta.resultLabelStyle)}</button>
-              </>
-            )}
-          </div>
-          {announced.length > 0 && (
-            <ul>
-              {announced.map((c) => (
-                <li key={c.id}>
-                  {game.players.find((p) => p.id === c.targetId)?.displayName}：{resultLabel(c.result)}
-                </li>
-              ))}
-            </ul>
-          )}
+          <JudgeAnnounce speakerId={executed.id} judgeKind={judgeKind} />
         </div>
       )}
       <p className="hint">夜フェイズへ進むと、遺言は記録できなくなります。結果の訂正は「昼・CO」タブの公表結果の履歴から行えます。</p>
+    </section>
+  )
+}
+
+// 予言者・霊媒師・狩人としての結果の発表（対象を選んで白・黒、または○・Gを記録する）。遺言欄と投票中の開示で共通。
+// 発表できる対象：霊媒は処刑された人、予言と護衛先（○・G）は死亡者を含む全員（本人以外）。
+function JudgeAnnounce({ speakerId, judgeKind }: { speakerId: PlayerId; judgeKind: 'seer' | 'medium' | 'bodyguard' }) {
+  const game = useGameStore((s) => s.game)
+  const addJudgmentByDrag = useGameStore((s) => s.addJudgmentByDrag)
+  const [targetId, setTargetId] = useState('')
+  const targets = game.players.filter((p) => {
+    if (p.id === speakerId) return false
+    if (judgeKind === 'medium') return !p.alive && p.death?.trueCause === 'execution'
+    return true
+  })
+  const claimKind = judgeKind === 'bodyguard' ? 'guard' : judgeKind
+  const announced = game.resultClaims.filter((c) => c.speakerId === speakerId && c.kind === claimKind && !c.retracted)
+  const resultLabel = (r: string) =>
+    r === 'guarded' ? '○（護衛）' : r === 'guard-success' ? 'G（護衛成功）' : formatWolfResult(r as 'wolf' | 'not-wolf', game.meta.resultLabelStyle)
+
+  function announce(result: 'wolf' | 'not-wolf' | 'guarded' | 'guard-success') {
+    if (!targetId) return
+    addJudgmentByDrag(speakerId, targetId, result, judgeKind)
+    setTargetId('')
+  }
+
+  return (
+    <>
+      <div className="row">
+        <select value={targetId} onChange={(e) => setTargetId(e.target.value)} style={{ width: 180 }} aria-label="発表の対象">
+          <option value="">対象を選ぶ</option>
+          {targets.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.displayName}
+              {p.alive ? '' : '（死亡）'}
+            </option>
+          ))}
+        </select>
+        {judgeKind === 'bodyguard' ? (
+          <>
+            <button disabled={!targetId} onClick={() => announce('guarded')}>○（護衛した）</button>
+            <button disabled={!targetId} onClick={() => announce('guard-success')}>G（護衛成功）</button>
+          </>
+        ) : (
+          <>
+            <button disabled={!targetId} onClick={() => announce('not-wolf')}>{formatWolfResult('not-wolf', game.meta.resultLabelStyle)}</button>
+            <button disabled={!targetId} onClick={() => announce('wolf')}>{formatWolfResult('wolf', game.meta.resultLabelStyle)}</button>
+          </>
+        )}
+      </div>
+      {announced.length > 0 && (
+        <ul>
+          {announced.map((c) => (
+            <li key={c.id}>
+              {game.players.find((p) => p.id === c.targetId)?.displayName}：{resultLabel(c.result)}
+            </li>
+          ))}
+        </ul>
+      )}
+    </>
+  )
+}
+
+// 投票中（弁明を含む）に予言者・霊媒師・狩人をCOした人の結果の開示。投票フェイズの間、生存しているCO者が使える。
+function VoteJudgePanel() {
+  const game = useGameStore((s) => s.game)
+  const [speakerId, setSpeakerId] = useState('')
+  const roleName = (r: RoleKey) => game.meta.roleNames[r] ?? DEFAULT_ROLE_NAMES[r]
+  const speakers = game.players
+    .filter((p) => p.alive)
+    .map((p) => ({ p, co: game.coRecords.find((c) => c.playerId === p.id && c.status === 'active') }))
+    .filter((x): x is { p: Player; co: NonNullable<typeof x.co> } => !!x.co && ['seer', 'medium', 'bodyguard'].includes(x.co.claimedRole))
+  if (game.phase !== 'vote' || speakers.length === 0) return null
+  const current = speakers.find((x) => x.p.id === speakerId)
+  return (
+    <section className="card">
+      <h2>投票中の結果の開示</h2>
+      <p className="hint">投票中や弁明中に{roleName('seer')}・{roleName('medium')}・{roleName('bodyguard')}をCOした人が、結果を開示したときに記録します。</p>
+      <div className="row">
+        <select value={speakerId} onChange={(e) => setSpeakerId(e.target.value)} style={{ width: 220 }} aria-label="開示する人">
+          <option value="">開示する人を選ぶ</option>
+          {speakers.map(({ p, co }) => (
+            <option key={p.id} value={p.id}>
+              {p.displayName}（{roleName(co.claimedRole)}CO）
+            </option>
+          ))}
+        </select>
+      </div>
+      {current && (
+        <div style={{ marginTop: 8 }}>
+          <JudgeAnnounce key={current.p.id} speakerId={current.p.id} judgeKind={current.co.claimedRole as 'seer' | 'medium' | 'bodyguard'} />
+        </div>
+      )}
     </section>
   )
 }
