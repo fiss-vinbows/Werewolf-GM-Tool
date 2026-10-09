@@ -1,7 +1,7 @@
 {
   "name": "werewolf-gm-tool",
   "private": true,
-  "version": "1.0.4",
+  "version": "1.0.5",
   "license": "MIT",
   "author": "fiss-vinbows",
   "type": "module",

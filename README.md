@@ -4,7 +4,7 @@
 CO・投票・夜の行動・勝敗を記録し、AIプレイヤー1人を参加させることもできます。
 ブラウザで動くWebアプリ（PWA）で、PC・スマートフォンのどちらでも使え、1度開けばオフラインでも動作します。
 
-- バージョン：1.0.4
+- バージョン：1.0.5
 - ホームページ：https://fiss-vinbows.jp/werewolf-game/
 - アプリ：https://fiss-vinbows.jp/wp-content/werewolf/
 - ライセンス：MIT License（[LICENSE](LICENSE)）
