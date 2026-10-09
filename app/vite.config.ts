@@ -2,6 +2,11 @@ import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
 import { VitePWA } from 'vite-plugin-pwa'
 import { viteSingleFile } from 'vite-plugin-singlefile'
+import { readFileSync } from 'node:fs'
+
+// 情報タブに表示するバージョンとビルド日（package.json の version を使う）。
+const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf-8')) as { version: string }
+const buildDate = new Date().toLocaleDateString('ja-JP', { timeZone: 'Asia/Tokyo' })
 
 // https://vite.dev/config/
 // --mode electron：PC用アプリ向けビルド。file相当の独自スキームで読み込むため相対パスにし、
@@ -17,6 +22,10 @@ const WORDPRESS_BASE = '/wp-content/werewolf/'
 export default defineConfig(({ mode }) => ({
   base: mode === 'electron' || mode === 'standalone' ? './' : mode === 'wordpress' ? WORDPRESS_BASE : '/',
   build: outDirs[mode] ? { outDir: outDirs[mode] } : undefined,
+  define: {
+    __APP_VERSION__: JSON.stringify(pkg.version),
+    __BUILD_DATE__: JSON.stringify(buildDate),
+  },
   plugins: [
     react(),
     mode === 'standalone' && viteSingleFile(),

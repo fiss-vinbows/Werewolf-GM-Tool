@@ -10,8 +10,9 @@ import { HistoryScreen } from './components/HistoryScreen'
 import { SaveScreen } from './components/SaveScreen'
 import { RosterScreen } from './components/RosterScreen'
 import { AiLogScreen } from './components/AiLogScreen'
+import { InfoScreen } from './components/InfoScreen'
 
-type Tab = 'roster' | 'players' | 'config' | 'day' | 'vote' | 'night' | 'history' | 'ailog' | 'save'
+type Tab = 'roster' | 'players' | 'config' | 'day' | 'vote' | 'night' | 'history' | 'ailog' | 'save' | 'info'
 
 const TABS: { key: Tab; label: string }[] = [
   { key: 'roster', label: '参加者選出' },
@@ -23,6 +24,7 @@ const TABS: { key: Tab; label: string }[] = [
   { key: 'ailog', label: 'AI記録' },
   { key: 'save', label: '保存・終了' },
   { key: 'config', label: '設定' },
+  { key: 'info', label: '情報' },
 ]
 
 function App() {
@@ -89,6 +91,7 @@ function App() {
         {tab === 'ailog' && <AiLogScreen />}
         {tab === 'save' && <SaveScreen />}
         {tab === 'config' && <ConfigScreen />}
+        {tab === 'info' && <InfoScreen />}
       </main>
     </div>
   )
