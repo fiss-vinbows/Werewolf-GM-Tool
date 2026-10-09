@@ -39,7 +39,7 @@ function sampleGame(): GameState {
 describe('スプレッドシート用CSV', () => {
   it('ユーザー提供の様式と同じ並びで書き出す', () => {
     const lines = exportResultCsv(sampleGame()).trim().split('\r\n')
-    expect(lines[0]).toBe('プレイヤー,役職,生死,,,初日,2日目,3日目,4日目,5日目,6日目,7日目,8日目')
+    expect(lines[0]).toBe('プレイヤー,役職,生存情報,補足情報,,初日,2日目,3日目,4日目,5日目,6日目,7日目,8日目')
     expect(lines[1]).toBe('プレイヤー1,村人,生存,,処刑,プレイヤー11,プレイヤー14,,,,,,')
     expect(lines[2]).toBe('プレイヤー2,村人,生存,,襲撃,プレイヤー5,プレイヤー10（失敗）,,,,,,')
     // 初日は初日白の通知先、2日目は1日目の夜の予言結果。
@@ -63,6 +63,16 @@ describe('スプレッドシート用CSV', () => {
     expect(lines[info + 2]).toBe('勝利陣営,（進行中）')
     expect(lines[info + 3]).toBe('終了日,2日目')
     expect(lines[info + 4]).toBe('人数,14人')
+    expect(lines[info + 5]).toBe('ルールメモ,')
+    expect(lines[info + 6]).toBe('自由メモ,')
+  })
+  it('ルールメモと自由メモを書き出す（改行やカンマはセル内に収める）', () => {
+    const g = sampleGame()
+    g.meta.ruleNote = '初日占いあり、連続護衛なし'
+    g.meta.memo = '1行目\n2行目,カンマ'
+    const csv = exportResultCsv(g)
+    expect(csv).toContain('ルールメモ,初日占いあり、連続護衛なし')
+    expect(csv).toContain('自由メモ,"1行目\n2行目,カンマ"')
   })
   it('AIの投票先の行と、騙り以外のCOを補足に書く', () => {
     const g = sampleGame()

@@ -1,5 +1,5 @@
 // スプレッドシート用のCSV書き出し（ユーザーが提供した記録用スプレッドシートの様式に合わせる）。
-// 左側（A〜D列）：プレイヤー・実際の役職・生死（「3日目襲撃」など）・補足（AI、騙り予言者1 など）。
+// 左側（A〜D列）：プレイヤー・実際の役職・生存情報（「3日目襲撃」など）・補足情報（AI、騙り予言者1 など）。
 // 右側（E列〜）：日ごとの出来事。列はその出来事が起きた「夜の日付」（初日＝1日目）にそろえる。
 //   処刑：その日の処刑者／襲撃：その夜の襲撃先（護衛されたら「（失敗）」）
 //   予言者：「初日」に初日白の通知先、2日目以降は前の夜の予言結果（初日白の通知を初日に置くため1日ずれる）
@@ -7,7 +7,7 @@
 //   騙り○○N：偽物の公表結果を公表した順に（死亡した次の日は「－」）
 //   AI投票：AIがその日に投票した相手（AIがいる対戦のみ）
 // 表の下（1行ずつ空けて）：投票履歴（プレイヤーごと・日ごとの投票先）、CO履歴、結果公表の履歴、
-// 対戦情報（対戦日・ゲームID・勝利陣営・終了日・人数）。
+// 対戦情報（対戦日・ゲームID・勝利陣営・終了日・人数・ルールメモ・自由メモ）。
 import type { GameState, PlayerId, RoleKey } from './types'
 
 const JUDGE_ROLES: RoleKey[] = ['seer', 'medium', 'bodyguard']
@@ -122,14 +122,14 @@ export function exportResultCsv(game: GameState): string {
     return notes.join('・')
   }
 
-  // 生死：死亡した日と公表された死因（「3日目襲撃」）。生存者は「生存」。
+  // 生存情報：死亡した日と公表された死因（「3日目襲撃」）。生存者は「生存」。
   const lifeOf = (id: PlayerId): string => {
     const p = game.players.find((x) => x.id === id)!
     if (p.alive || !p.death) return '生存'
     return `${p.death.day}日目${p.death.publicCause ?? (p.death.trueCause === 'execution' ? '処刑' : '死亡')}`
   }
 
-  const rows: string[][] = [['プレイヤー', '役職', '生死', '', '', ...dayHeaders]]
+  const rows: string[][] = [['プレイヤー', '役職', '生存情報', '補足情報', '', ...dayHeaders]]
   const n = Math.max(players.length, eventRows.length)
   for (let i = 0; i < n; i++) {
     const p = players[i]
@@ -184,5 +184,8 @@ export function exportResultCsv(game: GameState): string {
   rows.push(['勝利陣営', winner])
   rows.push(['終了日', `${game.day}日目`])
   rows.push(['人数', `${players.length}人`])
+  // 設定タブのルールメモと、自由メモ（昼・COタブの備考と共通）。改行はセル内の改行として書き出す。
+  rows.push(['ルールメモ', game.meta.ruleNote ?? ''])
+  rows.push(['自由メモ', game.meta.memo ?? ''])
   return rows.map((r) => r.map(csvCell).join(',')).join('\r\n') + '\r\n'
 }
