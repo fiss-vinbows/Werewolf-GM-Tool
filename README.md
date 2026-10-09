@@ -1,91 +1,91 @@
 # Werewolf GM Tool（人狼GM記録ツール）
 
-アルティメット人狼13〜14人向けの、GM専用の進行記録ツールです。React + TypeScript + Vite + PWAで実装しており、オフラインでも動作します。
+アルティメット人狼（13〜14人）を対面で遊ぶときの、GM専用の進行記録ツールです。
+CO・投票・夜の行動・勝敗を記録し、AIプレイヤー1人を参加させることもできます。
+ブラウザで動くWebアプリ（PWA）で、PC・スマートフォンのどちらでも使え、1度開けばオフラインでも動作します。
 
 - バージョン：1.0.4
 - ホームページ：https://fiss-vinbows.jp/werewolf-game/
+- アプリ：https://fiss-vinbows.jp/wp-content/werewolf/
 - ライセンス：MIT License（[LICENSE](LICENSE)）
 
-## 現状
+## 主な機能
 
-第1段階（GM用記録ツール）を実装済みです。プレイヤー登録・役職割り振り・CO記録・投票・夜フェイズの自動判定・勝敗判定・記録の書き出しまで一通り動作します。
+| タブ | できること |
+|---|---|
+| 参加者選出 | 参加者名簿から、複数戦で参加回数がなるべく均等になる組み合わせを作る |
+| プレイヤー登録 | 13人／14人の登録、AIの指定、実際の役職のドラッグ割り振り、初日白の抽選 |
+| 昼・CO | 議論タイマー、役職COと予言・霊媒・護衛（○・G）の結果公表をドラッグで記録 |
+| 投票 | 通常投票・決選投票をドラッグで記録。投票中のCOと結果の開示、処刑者の遺言でのCO・結果公表 |
+| 夜 | 人狼→予言者→霊媒師→狩人の順に記録。判定結果と護衛・襲撃の成否は自動判定 |
+| 訂正 | 「1つ戻る」で誤入力を取り消す |
+| AI記録 | AIの投票・夜行動の判断と、その理由（GM専用）を振り返る |
+| 保存・終了 | 勝敗の確定、JSON・テキスト・スプレッドシート用CSVの書き出し |
+| 設定・情報 | 役職名・表示方法などの設定、バージョン情報 |
 
-第2段階（AIプレイヤー）の投票AIと夜行動AIを実装済みです。
+- 記録はブラウザ内に自動保存されます（端末ごと。PCとスマートフォンでは共有されません）。
+- スマートフォンでは、投票先やCOボードを2列に並べ、ドラッグ中に画面の端へ近づくと自動でスクロールします。
 
-- `app/src/domain/ai/view.ts` … AIが知ってよい情報だけを取り出す情報フィルタ（仕様5-1）
-- `app/src/domain/ai/analysis.ts` … 確定白・確定人狼・破綻・処刑余裕数・ローラー・評価点などの公開情報分析
-- `app/src/domain/ai/vote.ts` … ルールベースの投票判断（方針A〜D、5-4、7-3）
-- `app/src/domain/ai/night.ts` … 夜行動の判断（予言対象・護衛・ラストウルフの襲撃）
-- 投票画面：AIの順番（通常投票は中央順、決選は人間の票を見る前）で投票先と判断理由（GM専用）を表示し、「発表済み」でAI票を確定
+### AIプレイヤー
 
-- 夜画面：AIの予言者・狩人・（人間の仲間がいない）人狼の選択と判断理由を表示し、「AIの選択で記録」で反映。人間の人狼が生存中はAI人狼は仲間の決定に従う
+公開情報と自分の役職で知り得る情報だけを使う、ルールベースのAIです。COや結果公表はせず、投票と夜の行動（予言・護衛・最後の人狼の襲撃）を行います。
 
-## セットアップ
+- `app/src/domain/ai/view.ts` … AIが知ってよい情報だけを取り出す
+- `app/src/domain/ai/analysis.ts` … 確定白・確定人狼・破綻・処刑余裕数・ローラー・評価点などの分析
+- `app/src/domain/ai/vote.ts` … 投票の判断
+- `app/src/domain/ai/night.ts` … 夜の行動の判断
+- `app/src/domain/ai/params.ts` … 評価点などの調整用の値
 
-```bash
-cd app
-npm install
-npm run dev
-```
+判断の方針は [docs/人狼AI_仕様プラン.txt](docs/人狼AI_仕様プラン.txt) にまとめています。
 
-## ビルド・オフライン動作の確認
-
-```bash
-cd app
-npm run build
-npm run preview
-```
-
-## テスト
-
-```bash
-cd app
-npm test
-```
-
-一度ブラウザでアクセスすればサービスワーカーが全アセットをキャッシュするため、以降はオフラインでも動作します。
-
-## 参加者選出（20人で4戦など）
-
-「参加者選出」タブで名簿を登録し、試合数と1戦の人間の参加人数を決めて「残りの試合の組み合わせを作成」を押すと、参加回数ができるだけ均等になり、2戦続けて休む人が出にくい組み合わせを作ります。試合ごとに「登録へ反映」でプレイヤー登録に名前を流し込み、終わったら「終了済みにする」。途中参加・欠席があれば出席を切り替えて作り直すと、終了済みの試合を考慮して残りの試合を組み直します。
-
-## PC用アプリ（Windows）
-
-Electronでデスクトップアプリとして動かせます。Windows PCで以下を実行します。
+## 開発
 
 ```bash
 cd app
 npm install
-npm run electron   # そのまま起動して確認
-npm run dist:win   # app/release/ にインストーラー版とポータブル版(.exe)を作成
+npm run dev      # 開発サーバー
+npm test         # テスト
+npm run build    # 本番ビルド（型チェック込み）
+npm run preview  # 本番ビルドの確認（オフライン動作の確認にも使う）
 ```
 
-- データ（自動保存・参加者名簿）はアプリ内に保存され、閉じても残ります。ブラウザ版とは別の保存場所です。
-- 完全オフラインで動作します。
-- コード署名をしていないため、初回起動時にWindows SmartScreenの警告が出ることがあります（「詳細情報」→「実行」）。
+### シミュレーション
 
-## WordPressのサーバーに置く（PC・スマートフォン両対応）
+13人全員をAIにした自動対局で、AIの値（評価点など）を比較できます。COと結果公表は、人間の動きをまねた簡単なモデルで行います。
 
-WordPressのサーバーの `wp-content/werewolf` フォルダに置き、
-`https://fiss-vinbows.jp/wp-content/werewolf/` でPC・スマートフォンのブラウザから使います。
-スマートフォンでは「ホーム画面に追加」でアプリのように使え、1度開けばオフラインでも動きます（PWA）。
+```bash
+cd app
+npm run sim -- --games 4000 --seed 11 --params '{"weightScale":10}'
+npx vite-node src/sim/csv-one.ts -- --seed 3 --pattern madSeer --ai p7 --out ../sim.csv  # 1戦をCSVで書き出す
+```
+
+## 公開・配布
+
+### WordPressのサーバーに置く（現在の運用）
 
 ```bash
 npm --prefix app run dist:wordpress
 ```
 
 1. `app/release/WerewolfGMTool-WordPress-<版>/werewolf` フォルダができます（`app/dist-wordpress` と同じ中身）。
-2. サーバーのファイルマネージャー（またはFTP）で、この `werewolf` フォルダの中身をWordPressの `wp-content/werewolf/` にアップロードして上書きします。`assets` フォルダ・`sw.js`・`workbox-〜.js` も忘れずにアップロードしてください。
-3. `https://fiss-vinbows.jp/wp-content/werewolf/` を開いて確認します。WordPressのメニューにこのURLへのリンクを追加すると便利です。
+2. その中身を、サーバーの `wp-content/werewolf/` にアップロードして上書きします。`assets` フォルダ・`sw.js`・`workbox-〜.js` も忘れずにアップロードしてください。
+3. `https://fiss-vinbows.jp/wp-content/werewolf/` を開き、「情報」タブのバージョンで反映を確認します。開いたことのある端末では、1回目は古い版が表示されることがあります。
 
-- 記録はそれぞれの端末のブラウザ内に保存されます。PCとスマートフォンで記録は共有されません。
-- 更新するときは、同じ手順で `werewolf` フォルダを上書きします。開いている端末は次回起動時に新しい版へ切り替わります。
-- 置き場所を変える場合は、`app/vite.config.ts` の `WORDPRESS_BASE` と `app/scripts/make-wordpress-folder.mjs` のフォルダ名を変更してからビルドします。
+置き場所を変える場合は、`app/vite.config.ts` の `WORDPRESS_BASE`・`WORDPRESS_ORIGIN` と、`app/scripts/make-wordpress-folder.mjs` のフォルダ名を変更してからビルドします。
+
+### その他の形（現在は使っていない）
+
+- **Windows版（Electron）：** `npm run electron` で起動、`npm run dist:win` で `app/release/` にインストーラー版とポータブル版を作成します。コード署名をしていないため、初回起動時にWindows SmartScreenの警告が出ることがあります。
+- **通信不要版（1つのHTMLファイル）：** `npm run dist:zip` で `app/release/` に作成します。ダブルクリックで開けますが、ホーム画面への追加（PWA）は使えません。
 
 ## ディレクトリ構成
 
-- `app/` — Reactアプリ本体
-- `input/` — 仕様検討資料（日本語）
+- `app/` — アプリ本体（React + TypeScript + Vite）
+  - `src/components/` — 画面
+  - `src/domain/` — 記録のデータ構造・書き出し・AIの判断
+  - `src/store/` — 状態管理（zustand）
+  - `src/sim/` — 全員AIのシミュレーション
+- `docs/` — 仕様書・確認事項リスト・既存ツール調査などの検討資料（日本語）
 
 ## ライセンス
 
