@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useGameStore } from '../store/gameStore'
 import { downloadTextFile, exportGameJson, exportGameText } from '../domain/export'
+import { exportResultCsv } from '../domain/exportCsv'
 import { RoleRoster } from './RoleRoster'
 
 export function SaveScreen() {
@@ -43,7 +44,11 @@ export function SaveScreen() {
           <button onClick={() => downloadTextFile(`${game.meta.gameId}.txt`, exportGameText(game))}>
             人が読めるテキストを書き出す
           </button>
+          <button onClick={() => downloadTextFile(`${game.meta.gameId}.csv`, exportResultCsv(game), 'text/csv;charset=utf-8')}>
+            スプレッドシート用CSVを書き出す
+          </button>
         </div>
+        <p className="hint">CSVはGoogleスプレッドシートの「ファイル → インポート」で取り込めます。</p>
       </section>
 
       <section className="card">
