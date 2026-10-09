@@ -2,7 +2,8 @@
 // 左側（A〜C列）：プレイヤー・実際の役職・補足（AI、騙り予言者1 など）。
 // 右側（D列〜）：日ごとの出来事。列はその出来事が起きた「夜の日付」（初日＝1日目）にそろえる。
 //   処刑：その日の処刑者／襲撃：その夜の襲撃先（護衛されたら「（失敗）」）
-//   予言者・霊媒師・狩人：本物の役職者のその夜の結果（狩人は護衛先、成功なら「（護衛）」）
+//   予言者：「初日」に初日白の通知先、2日目以降は前の夜の予言結果（初日白の通知を初日に置くため1日ずれる）
+//   霊媒師・狩人：本物の役職者のその夜の結果（狩人は護衛先、成功なら「（護衛）」）
 //   騙り○○N：偽物の公表結果を公表した順に（死亡した次の日は「－」）
 import type { GameState, PlayerId, RoleKey } from './types'
 
@@ -62,7 +63,11 @@ export function exportResultCsv(game: GameState): string {
     roleName(role),
     dayHeaders.map((_, i) => {
       const n = night(i + 1)
-      if (role === 'seer') return n?.seer ? `${nameOf(n.seer.targetId)}→${bw(n.seer.result)}` : ''
+      if (role === 'seer') {
+        if (i === 0) return game.day1WhiteNotice ? `${nameOf(game.day1WhiteNotice)}→白` : ''
+        const prev = night(i)?.seer
+        return prev ? `${nameOf(prev.targetId)}→${bw(prev.result)}` : ''
+      }
       if (role === 'medium') return n?.medium ? `${nameOf(n.medium.targetId)}→${bw(n.medium.result)}` : ''
       return n?.bodyguard ? `${nameOf(n.bodyguard.targetId)}${n.bodyguard.success ? '（護衛）' : ''}` : ''
     }),
