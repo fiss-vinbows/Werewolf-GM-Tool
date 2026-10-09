@@ -24,6 +24,7 @@ import {
   wolfCoOrder,
 } from './analysis'
 import type { AiView } from './view'
+import { DEFAULT_AI_PARAMS, type AiParams } from './params'
 
 // 判断方式の版。方針を変えたら上げる（判断履歴の振り返り用）。
 export const AI_VOTE_POLICY_VERSION = 'vote-rule-14'
@@ -48,7 +49,7 @@ function previousRoundOfDay(view: AiView, roundId: string) {
     .find((r) => r.day === day)
 }
 
-export function decideVote(view: AiView, round: VoteRoundInput, rng: Rng = Math.random): VoteDecisionResult {
+export function decideVote(view: AiView, round: VoteRoundInput, rng: Rng = Math.random, params: AiParams = DEFAULT_AI_PARAMS): VoteDecisionResult {
   const reasons: string[] = []
   const legal =
     round.kind === 'normal'
@@ -59,7 +60,7 @@ export function decideVote(view: AiView, round: VoteRoundInput, rng: Rng = Math.
   // 「先行票」の代わりに使う（C-7、2026-10-04確定）。
   const counts = voteCounts(round.kind === 'normal' ? view.voteRounds.find((r) => r.id === round.id) : previousRoundOfDay(view, round.id))
   if (round.kind !== 'normal') reasons.push('決選のため、先行票の代わりに直前ラウンドの公開済み得票を使用')
-  const ctx: Ctx = { view, round, legal, counts, rng, reasons }
+  const ctx: Ctx = { view, round, legal, counts, rng, reasons, params }
 
   const { margin, explanation } = executionMargin(view)
   reasons.push(`処刑余裕数: ${explanation}`)
@@ -81,6 +82,7 @@ type Ctx = {
   counts: Map<PlayerId, number>
   rng: Rng
   reasons: string[]
+  params: AiParams
 }
 
 function decideVillageSide(ctx: Ctx, margin: number): VoteDecisionResult {
@@ -205,12 +207,12 @@ function decideVillageSide(ctx: Ctx, margin: number): VoteDecisionResult {
   }
 
   // 6. 投票履歴による評価点で重み付きランダム（低いほど選ばれやすい）。
-  const scores = villageScores(view, adoptedMediumResults(view, overrides))
+  const scores = villageScores(view, adoptedMediumResults(view, overrides), ctx.params)
   const scored = allowed.filter((id) => scores.has(id))
   if (scored.length > 0) reasons.push(`評価点: ${allowed.map((id) => `${nameOf(view, id)} ${scores.get(id) ?? 0}`).join('、')}`)
   // 解除済みの破綻者は、村を混乱させた履歴として選ばれやすさを2倍にする（7-4、2026-10-04確定）。
   const releasedSet = new Set(releasedIds)
-  const t = weightedPick(ctx, allowed, (id) => Math.pow(2, -(scores.get(id) ?? 0) / 20) * (releasedSet.has(id) ? 2 : 1))
+  const t = weightedPick(ctx, allowed, (id) => Math.pow(2, -(scores.get(id) ?? 0) / ctx.params.weightScale) * (releasedSet.has(id) ? 2 : 1))
   return pick(ctx, t, scored.length > 0 ? '評価点による重み付きランダム' : 'ランダム投票')
 }
 

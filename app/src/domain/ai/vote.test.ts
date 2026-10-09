@@ -545,4 +545,15 @@ describe('AI視点の真偽（2026-10-05、実ゲームの再現）', () => {
     co(g, 'p9', 'bodyguard', 3)
     expect(decide(g, 'p13', round(g, 'normal', [['p10', 'p8']])).reasons.join()).not.toContain('単独狩人CO')
   })
+  it('単独で予言者COした人の白は投票対象外（2026-10-09修正）', () => {
+    const g = setup('p13', 2)
+    co(g, 'p5', 'seer', 1)
+    claim(g, 'seer', 'p5', 'p3', 'not-wolf', 2)
+    const r = round(g, 'normal', [['p10', 'p3']])
+    for (const x of [0, 0.3, 0.6, 0.99]) {
+      const res = decide(g, 'p13', r, seq(x))
+      expect(res.targetId).not.toBe('p3')
+      expect(res.reasons.join()).toContain('プレイヤー3（単独の予言者CO者から白）')
+    }
+  })
 })

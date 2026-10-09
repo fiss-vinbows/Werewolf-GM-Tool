@@ -1,6 +1,7 @@
 // AIの公開情報分析（仕様5-3〜5-4-5、7章）。すべてAiViewだけを入力とし、真の配役は参照しない。
 import type { PlayerId, RoleKey } from '../types'
 import type { AiView, PublicVoteRound } from './view'
+import { DEFAULT_AI_PARAMS, type AiParams } from './params'
 
 // 人狼陣営の最大人数（人狼3＋狂人1）。処刑余裕数の計算に使う（方針C-2b）。
 const MAX_EVIL = 4
@@ -146,12 +147,15 @@ export function confirmedWhites(view: AiView): Map<PlayerId, string> {
     result.set(trueSeer, 'AI視点の真予言者（対抗が自分に黒を出した偽物）')
     for (const c of seerClaims(view)) if (c.speakerId === trueSeer && c.result === 'not-wolf' && !result.has(c.targetId)) result.set(c.targetId, `AI視点の真予言者${nameOf(view, trueSeer)}の白`)
   }
+  // 予言者CO者全員から白をもらった人。予言者COが1人だけなら、その人の白で満たされる（2026-10-09修正：
+  // 以前は2人以上のときだけ判定しており、単独COの予言者の白が投票対象外になっていなかった）。
   const seers = activeClaimants(view, 'seer')
-  if (seers.length >= 2) {
+  if (seers.length >= 1) {
     const claims = seerClaims(view)
     for (const p of view.players) {
+      if (result.has(p.id)) continue
       if (seers.every((s) => s !== p.id && claims.some((c) => c.speakerId === s && c.targetId === p.id && c.result === 'not-wolf'))) {
-        result.set(p.id, '予言者CO者全員から白')
+        result.set(p.id, seers.length === 1 ? '単独の予言者CO者から白' : '予言者CO者全員から白')
       }
     }
   }
@@ -284,7 +288,11 @@ export function lastDayFinalCounts(view: AiView): Map<PlayerId, number> {
 
 // 投票履歴による村人らしさの評価点（5-4-4a）。点を付けるのは投票者。
 // adopted: 処刑者ごとに採用する霊媒結果。
-export function villageScores(view: AiView, adopted: Map<PlayerId, 'wolf' | 'not-wolf'>): Map<PlayerId, number> {
+export function villageScores(
+  view: AiView,
+  adopted: Map<PlayerId, 'wolf' | 'not-wolf'>,
+  params: AiParams = DEFAULT_AI_PARAMS,
+): Map<PlayerId, number> {
   const scores = new Map<PlayerId, number>()
   const madmen = new Set(activeClaimants(view, 'madman'))
   for (const round of view.voteRounds) {
@@ -297,7 +305,8 @@ export function villageScores(view: AiView, adopted: Map<PlayerId, 'wolf' | 'not
       if (brokenAtVote(view, round.day, v.afterEventOrder).has(v.targetId)) continue
       // 狂人COした人（霊媒結果は人間）への投票は0点。狂人は人狼陣営なので、投票者を疑う理由にならない（C-13、2026-10-04確定）。
       if (res === 'not-wolf' && madmen.has(v.targetId)) continue
-      const delta = round.kind === 'normal' ? (res === 'wolf' ? 20 : -10) : res === 'wolf' ? 5 : -3
+      const delta =
+        round.kind === 'normal' ? (res === 'wolf' ? params.normalWolf : params.normalHuman) : res === 'wolf' ? params.runoffWolf : params.runoffHuman
       scores.set(v.voterId, (scores.get(v.voterId) ?? 0) + delta)
     }
   }
