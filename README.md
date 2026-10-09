@@ -38,42 +38,9 @@ CO・投票・夜の行動・勝敗を記録し、AIプレイヤー1人を参加
 
 判断の方針は [docs/人狼AI_仕様プラン.txt](docs/人狼AI_仕様プラン.txt) にまとめています。
 
-## 開発
+## その他の形
 
-```bash
-cd app
-npm install
-npm run dev      # 開発サーバー
-npm test         # テスト
-npm run build    # 本番ビルド（型チェック込み）
-npm run preview  # 本番ビルドの確認（オフライン動作の確認にも使う）
-```
-
-### シミュレーション
-
-13人全員をAIにした自動対局で、AIの値（評価点など）を比較できます。COと結果公表は、人間の動きをまねた簡単なモデルで行います。
-
-```bash
-cd app
-npm run sim -- --games 4000 --seed 11 --params '{"weightScale":10}'
-npx vite-node src/sim/csv-one.ts -- --seed 3 --pattern madSeer --ai p7 --out ../sim.csv  # 1戦をCSVで書き出す
-```
-
-## 公開・配布
-
-### WordPressのサーバーに置く（現在の運用）
-
-```bash
-npm --prefix app run dist:wordpress
-```
-
-1. `app/release/WerewolfGMTool-WordPress-<版>/werewolf` フォルダができます（`app/dist-wordpress` と同じ中身）。
-2. その中身を、サーバーの `wp-content/werewolf/` にアップロードして上書きします。`assets` フォルダ・`sw.js`・`workbox-〜.js` も忘れずにアップロードしてください。
-3. `https://fiss-vinbows.jp/wp-content/werewolf/` を開き、「情報」タブのバージョンで反映を確認します。開いたことのある端末では、1回目は古い版が表示されることがあります。
-
-置き場所を変える場合は、`app/vite.config.ts` の `WORDPRESS_BASE`・`WORDPRESS_ORIGIN` と、`app/scripts/make-wordpress-folder.mjs` のフォルダ名を変更してからビルドします。
-
-### その他の形（現在は使っていない）
+ブラウザ版のほかに、次の形でも使えます（現在は配布していません）。
 
 - **Windows版（Electron）：** `npm run electron` で起動、`npm run dist:win` で `app/release/` にインストーラー版とポータブル版を作成します。コード署名をしていないため、初回起動時にWindows SmartScreenの警告が出ることがあります。
 - **通信不要版（1つのHTMLファイル）：** `npm run dist:zip` で `app/release/` に作成します。ダブルクリックで開けますが、ホーム画面への追加（PWA）は使えません。
