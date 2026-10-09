@@ -98,6 +98,23 @@ export function simulateGame(params: AiParams, pattern: FakePattern, rng: Rng, l
   const seerResultOf = new Map<number, { targetId: PlayerId; result: 'wolf' | 'not-wolf' }>()
   const mediumResultOf = new Map<number, { targetId: PlayerId; result: 'wolf' | 'not-wolf' }>()
   let prevGuardMode: GuardMode | null = null
+  // 狩人の実際の護衛履歴（COしたときに○・Gとして発表する）。
+  const guardHistory: { night: number; targetId: PlayerId; success: boolean }[] = []
+  let bodyguardCoed = false
+  // 狩人は処刑されそうになったらCOし、これまでの護衛先を発表する（ユーザーの卓の傾向、2026-10-09）。
+  const bodyguardCo = (afterVoteCount: number | null) => {
+    if (bodyguardCoed || !alive(bodyguard)) return
+    bodyguardCoed = true
+    const rec: CoRecord = { id: `co-${bodyguard}`, eventOrder: nextOrder(), day: g.day, claimedRole: 'bodyguard', playerId: bodyguard, recordedAt: '', status: 'active', supersedes: null, note: '', afterVoteCount }
+    g.coRecords.push(rec)
+    coIdOf.set(bodyguard, rec.id)
+    claimants.add(bodyguard)
+    log?.(`  狩人CO ${bodyguard}`)
+    guardHistory.forEach((h, i) => {
+      const c: ResultClaim = { id: `c${g.eventCounter + 1}`, eventOrder: nextOrder(), coId: rec.id, kind: 'guard', speakerId: bodyguard, targetId: h.targetId, targetDay: i + 1, announcedDay: g.day, result: h.success ? 'guard-success' : 'guarded', recordedAt: '', retracted: false }
+      g.resultClaims.push(c)
+    })
+  }
 
   // 朝の結果公表。
   const announce = () => {
@@ -153,6 +170,8 @@ export function simulateGame(params: AiParams, pattern: FakePattern, rng: Rng, l
       ids.filter((id) => alive(id) && (kind === 'normal' || !candidateIds.includes(id))),
       rng,
     )
+    // 決選の候補になった狩人は、弁明でCOする。
+    if (kind !== 'normal' && candidateIds.includes(bodyguard)) bodyguardCo(g.voteEventCounter)
     for (const voterId of voters) {
       let targetId: PlayerId
       try {
@@ -164,6 +183,13 @@ export function simulateGame(params: AiParams, pattern: FakePattern, rng: Rng, l
       }
       const v: Vote = { voterId, targetId, recordedAt: '', order: round.votes.length + 1, globalOrder: ++g.voteEventCounter, afterEventOrder: g.eventCounter }
       round.votes.push(v)
+      // 通常投票の途中で、狩人に最多票が集まり処刑されそうなら（投票の半数以上が済んだ時点）COする。
+      if (kind === 'normal' && !bodyguardCoed && alive(bodyguard) && round.votes.length * 2 >= voters.length) {
+        const c = new Map<PlayerId, number>()
+        for (const x of round.votes) c.set(x.targetId, (c.get(x.targetId) ?? 0) + 1)
+        const top = Math.max(...c.values())
+        if ((c.get(bodyguard) ?? 0) === top) bodyguardCo(g.voteEventCounter)
+      }
     }
     round.resolved = true
     const counts = new Map<PlayerId, number>()
@@ -228,7 +254,10 @@ export function simulateGame(params: AiParams, pattern: FakePattern, rng: Rng, l
     const leadWolf = wolves.find(alive)!
     const attack = decideWolfAttack(buildAiView(g, leadWolf), rng).targetId
     const success = guardTarget === attack
-    if (guardTarget) night.bodyguard = { day: g.day, targetId: guardTarget, success }
+    if (guardTarget) {
+      night.bodyguard = { day: g.day, targetId: guardTarget, success }
+      guardHistory.push({ night: g.day, targetId: guardTarget, success })
+    }
     night.wolf = { day: g.day, targetId: attack, success: !success }
     g.nightRecords.push(night)
     log?.(`  夜: 予言 ${night.seer?.targetId ?? '-'} / 護衛 ${guardTarget ?? '-'} / 襲撃 ${attack}(${roleOf(attack)}) ${success ? '護衛成功' : ''}`)

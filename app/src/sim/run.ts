@@ -2,7 +2,10 @@
 // 指定したパラメータで、騙りパターンごとに同数のゲームを行い、村人陣営の勝率を出力する。
 // 出力は1行のJSON（並列実行スクリプトから集計する）。
 import { DEFAULT_AI_PARAMS, type AiParams } from '../domain/ai/params'
-import { FAKE_PATTERNS, seededRng, simulateGame } from './simulate'
+import { FAKE_PATTERNS, seededRng, simulateGame, type FakePattern } from './simulate'
+
+// 騙りの型の出現比率（ユーザーの卓の傾向、2026-10-09）：予言者3COだけ他の半分。
+const PATTERN_CYCLE: FakePattern[] = ['madSeer', 'wolfSeer', 'madSeerWolfMedium', 'noFake', 'madSeer', 'wolfSeer', 'madSeerWolfMedium', 'noFake', 'madWolfSeer']
 
 const args = process.argv.slice(2)
 const arg = (name: string, def: string) => {
@@ -17,7 +20,7 @@ const t0 = Date.now()
 const byPattern: Record<string, { village: number; wolf: number; draw: number; days: number }> = {}
 for (const p of FAKE_PATTERNS) byPattern[p] = { village: 0, wolf: 0, draw: 0, days: 0 }
 for (let i = 0; i < games; i++) {
-  const pattern = FAKE_PATTERNS[i % FAKE_PATTERNS.length]
+  const pattern = PATTERN_CYCLE[i % PATTERN_CYCLE.length]
   const r = simulateGame(params, pattern, seededRng(seed * 1_000_003 + i))
   byPattern[pattern][r.winner] += 1
   byPattern[pattern].days += r.days
