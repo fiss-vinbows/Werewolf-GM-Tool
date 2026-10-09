@@ -146,7 +146,20 @@ export function CoBoard() {
           ) : (
             <span className="judge-dot-placeholder" />
           )}
-          <span className="player-name-label">
+          <span
+            className={`player-name-label${activeCo ? ' co-outline' : ''}`}
+            style={activeCo ? { ['--co-color' as string]: ROLE_COLORS[activeCo.claimedRole] } : undefined}
+            title={activeCo ? `CO: ${roleName(activeCo.claimedRole)}（押すと撤回・誤記取り消し）` : undefined}
+            onClick={
+              activeCo
+                ? (e) => {
+                    e.stopPropagation()
+                    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
+                    setMenu({ kind: 'co', id: activeCo.id, x: rect.left, y: rect.bottom, canRetract: canSpeak(game, p.id) })
+                  }
+                : undefined
+            }
+          >
             <PlayerName player={p} />
           </span>
           {oneIconKind && interactive ? (
@@ -170,21 +183,6 @@ export function CoBoard() {
           )}
         </div>
 
-        {activeCo && (
-          <span className="co-chip co-chip-with-close" style={{ background: ROLE_COLORS[activeCo.claimedRole] }}>
-            CO: {roleName(activeCo.claimedRole)}
-            <button
-              className="chip-close"
-              onClick={(e) => {
-                e.stopPropagation()
-                const rect = (e.target as HTMLElement).getBoundingClientRect()
-                setMenu({ kind: 'co', id: activeCo.id, x: rect.left, y: rect.bottom, canRetract: canSpeak(game, p.id) })
-              }}
-            >
-              ×
-            </button>
-          </span>
-        )}
 
         {judgments.length > 0 && (
           <div className="judge-history">
@@ -219,7 +217,7 @@ export function CoBoard() {
   return (
     <div className="co-board">
       <p className="hint">
-        役職ラベルをプレイヤー名へドラッグするとCOを記録します。同じ人へ別の役職を重ねるとスライドとして記録します。
+        役職ラベルをプレイヤー名へドラッグするとCOを記録し、名前がその役職の色の枠で囲まれます。同じ人へ別の役職を重ねるとスライドとして記録します。枠で囲まれた名前を押すと、撤回・誤記取り消しができます。
         予言者・霊媒師CO した人は名前の両端に白丸／黒丸、狩人CO した人は左側に○（護衛先）・右側にG（護衛成功した先）が出るので、対象者へドラッグすると判定・護衛順を記録できます（記録した順番を対象日として扱います）。
         霊媒は処刑されたプレイヤーのみが対象です。予言結果と護衛先（○・G）は死亡したプレイヤーにも記録できます。COの新規記録は生存者にのみ行え、死亡したプレイヤーは撤回もできません。
       </p>

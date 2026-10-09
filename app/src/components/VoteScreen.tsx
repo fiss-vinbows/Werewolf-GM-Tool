@@ -76,6 +76,8 @@ function VoteRoundBoard({ round, alivePlayers }: { round: VoteRound; alivePlayer
 
   const [ghost, setGhost] = useState<{ label: string; color: string; x: number; y: number } | null>(null)
   const [hoverTarget, setHoverTarget] = useState<string | null>(null)
+  // 役職ラベルをドラッグ中に、投票済みの名前（投票者）の上にあるとき、その投票者のID。
+  const [hoverVoter, setHoverVoter] = useState<string | null>(null)
   const draggingRef = useRef<{ kind: 'vote'; voterId: PlayerId } | { kind: 'co'; role: RoleKey } | null>(null)
 
   const voters = round.kind === 'normal' ? alivePlayers : alivePlayers.filter((p) => !round.candidateIds.includes(p.id))
@@ -131,10 +133,15 @@ function VoteRoundBoard({ round, alivePlayers }: { round: VoteRound; alivePlayer
     // ドラッグ中に画面の上端・下端へ近づいたら自動スクロールする（スマートフォン対応）。
     let lastX = e.clientX
     let lastY = e.clientY
-    const scroller = startDragAutoScroll(() => {
-      const zone = (document.elementFromPoint(lastX, lastY) as HTMLElement | null)?.closest(`[${zoneAttrName}]`) as HTMLElement | null
+    // 指の下のドロップ先をハイライトする。役職ラベルのときは投票済みの名前（投票者）を優先する。
+    const updateHover = (x: number, y: number) => {
+      const el = document.elementFromPoint(x, y) as HTMLElement | null
+      const voter = dragging.kind === 'co' ? (el?.closest('[data-voterco]') as HTMLElement | null) : null
+      setHoverVoter(voter?.dataset.voterco ?? null)
+      const zone = voter ? null : (el?.closest(`[${zoneAttrName}]`) as HTMLElement | null)
       setHoverTarget(zone?.getAttribute(zoneAttrName) ?? null)
-    })
+    }
+    const scroller = startDragAutoScroll(() => updateHover(lastX, lastY))
 
     const handleMove = (ev: PointerEvent) => {
       lastX = ev.clientX
@@ -142,9 +149,7 @@ function VoteRoundBoard({ round, alivePlayers }: { round: VoteRound; alivePlayer
       scroller.update(ev.clientY)
       if (!draggingRef.current) return
       setGhost((g) => (g ? { ...g, x: ev.clientX, y: ev.clientY } : g))
-      const el = document.elementFromPoint(ev.clientX, ev.clientY) as HTMLElement | null
-      const zone = el?.closest(`[${zoneAttrName}]`) as HTMLElement | null
-      setHoverTarget(zone?.getAttribute(zoneAttrName) ?? null)
+      updateHover(ev.clientX, ev.clientY)
     }
     const handleUp = (ev: PointerEvent) => {
       scroller.stop()
@@ -155,8 +160,15 @@ function VoteRoundBoard({ round, alivePlayers }: { round: VoteRound; alivePlayer
       draggingRef.current = null
       setGhost(null)
       setHoverTarget(null)
+      setHoverVoter(null)
       if (!drag) return
       const el = document.elementFromPoint(ev.clientX, ev.clientY) as HTMLElement | null
+      // 役職ラベルを投票済みの名前に置いたら、その投票者のCOとして記録する（投票先を言ってからCOする場合）。
+      const voterEl = drag.kind === 'co' ? (el?.closest('[data-voterco]') as HTMLElement | null) : null
+      if (drag.kind === 'co' && voterEl?.dataset.voterco) {
+        recordCoDuringVote(voterEl.dataset.voterco, drag.role)
+        return
+      }
       const zone = el?.closest(`[${zoneAttrName}]`) as HTMLElement | null
       const targetId = zone?.getAttribute(zoneAttrName)
       if (!targetId) return
@@ -174,14 +186,11 @@ function VoteRoundBoard({ round, alivePlayers }: { round: VoteRound; alivePlayer
     window.addEventListener('pointercancel', handleUp)
   }
 
-  function coChipOf(playerId: PlayerId) {
+  // COしている人は、名前をCOした役職の色の枠で囲んで示す（2026-10-09）。
+  function coOutlineProps(playerId: PlayerId): { className: string; style?: React.CSSProperties; title?: string } {
     const co = game.coRecords.find((c) => c.playerId === playerId && c.status === 'active')
-    if (!co) return null
-    return (
-      <span className="co-chip vote-co-chip" style={{ background: ROLE_COLORS[co.claimedRole] }}>
-        CO: {roleName(co.claimedRole)}
-      </span>
-    )
+    if (!co) return { className: '' }
+    return { className: ' co-outline', style: { ['--co-color' as string]: ROLE_COLORS[co.claimedRole] }, title: `CO: ${roleName(co.claimedRole)}` }
   }
 
   return (
@@ -258,13 +267,13 @@ function VoteRoundBoard({ round, alivePlayers }: { round: VoteRound; alivePlayer
             {unvoted.map((v) => (
               <div key={v.id} {...{ [zoneAttrName]: v.id }} className={`chip-with-co${hoverTarget === v.id ? ' drop-hover' : ''}`}>
                 <div
-                  className="chip"
-                  style={{ background: roleColorOf(v), touchAction: 'none' }}
+                  className={`chip${coOutlineProps(v.id).className}`}
+                  style={{ background: roleColorOf(v), touchAction: 'none', ...coOutlineProps(v.id).style }}
+                  title={coOutlineProps(v.id).title}
                   onPointerDown={(e) => startDrag(e, { kind: 'vote', voterId: v.id }, v.displayName, roleColorOf(v))}
                 >
                   <PlayerName player={v} />
                 </div>
-                {coChipOf(v.id)}
               </div>
             ))}
             {unvoted.length === 0 && <span className="hint">なし</span>}
@@ -282,7 +291,10 @@ function VoteRoundBoard({ round, alivePlayers }: { round: VoteRound; alivePlayer
                 style={{ ['--target-color' as string]: roleColorOf(t) }}
               >
                 <div className="dropzone-label">
-                  <PlayerName player={t} />（{votesForTarget.length}票）{coChipOf(t.id)}
+                  <span className={`target-name${coOutlineProps(t.id).className}`} style={coOutlineProps(t.id).style} title={coOutlineProps(t.id).title}>
+                    <PlayerName player={t} />
+                  </span>
+                  （{votesForTarget.length}票）
                 </div>
                 <div className="chip-row">
                   {votesForTarget.map((v, i) => {
@@ -290,8 +302,10 @@ function VoteRoundBoard({ round, alivePlayers }: { round: VoteRound; alivePlayer
                     return (
                       <div
                         key={v.voterId}
-                        className="chip chip-vote"
-                        style={{ background: voter ? roleColorOf(voter) : undefined }}
+                        // 投票済みの名前に役職ラベルを置くと、投票先ではなく投票者本人のCOとして記録する。
+                        data-voterco={v.voterId}
+                        className={`chip chip-vote${coOutlineProps(v.voterId).className}${hoverVoter === v.voterId ? ' drop-hover' : ''}`}
+                        style={{ background: voter ? roleColorOf(voter) : undefined, ...coOutlineProps(v.voterId).style }}
                         title={`このラウンドで${i + 1}番目／ゲーム全体で${v.globalOrder}番目に投票`}
                         onClick={() => !round.resolved && removeVote(round.id, v.voterId)}
                       >

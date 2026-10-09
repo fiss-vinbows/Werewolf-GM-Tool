@@ -693,3 +693,23 @@ button {
     min-width: 0;
   }
 }
+
+/* COしている人：名前をCOした役職の色の枠で囲む（2026-10-09）。 */
+.co-outline {
+  box-shadow: 0 0 0 2px var(--co-color);
+  border-radius: 6px;
+}
+.player-name-label.co-outline,
+.target-name.co-outline {
+  padding: 0 4px;
+  cursor: pointer;
+}
+/* 名前と死亡情報が折り返さないようにする。 */
+.player-name-label,
+.target-name,
+.chip {
+  white-space: nowrap;
+}
+.chip-vote.drop-hover {
+  outline: 2px dashed #e0c040;
+}
