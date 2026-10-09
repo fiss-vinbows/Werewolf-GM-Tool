@@ -161,7 +161,7 @@ describe('投票方針', () => {
     const r2 = round(g)
     const res = decide(g, 'p6', r2, seq(0.5))
     expect(res.reasons.some((x) => x.includes('評価点'))).toBe(true)
-    expect(res.reasons.join()).toContain('プレイヤー8 20')
+    expect(res.reasons.join()).toContain('プレイヤー8 40')
   })
 })
 
@@ -477,7 +477,7 @@ describe('C項目: 投票・ローラー', () => {
     const view = buildAiView(g, 'p8')
     const scores = villageScores(view, adoptedMediumResults(view))
     expect(scores.get('p11') ?? 0).toBe(0)
-    expect(scores.get('p12')).toBe(20)
+    expect(scores.get('p12')).toBe(40)
   })
 })
 

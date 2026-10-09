@@ -9,10 +9,12 @@ export type AiParams = {
   weightScale: number
 }
 
+// 2026-10-09：全員AIのシミュレーション（src/sim）の結果から、通常投票の人狼への点を＋20→＋40、
+// 強さを20→10に変更（村人陣営の勝率 34.1％→37.4％）。決選の点は据え置き。
 export const DEFAULT_AI_PARAMS: AiParams = {
-  normalWolf: 20,
+  normalWolf: 40,
   normalHuman: -10,
   runoffWolf: 5,
   runoffHuman: -3,
-  weightScale: 20,
+  weightScale: 10,
 }
