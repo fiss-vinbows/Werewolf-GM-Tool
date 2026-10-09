@@ -1,5 +1,5 @@
 import react from '@vitejs/plugin-react'
-import { defineConfig } from 'vite'
+import { defineConfig, type Plugin } from 'vite'
 import { VitePWA } from 'vite-plugin-pwa'
 import { viteSingleFile } from 'vite-plugin-singlefile'
 import { readFileSync } from 'node:fs'
@@ -19,6 +19,35 @@ const buildDate = new Date().toLocaleDateString('ja-JP', { timeZone: 'Asia/Tokyo
 const outDirs: Record<string, string> = { standalone: 'dist-standalone', wordpress: 'dist-wordpress' }
 // WordPress版の置き場所（URLのパス）。変更する場合は scripts/make-wordpress-zip.mjs のフォルダ名も合わせる。
 const WORDPRESS_BASE = '/wp-content/werewolf/'
+// WordPress版の公開先。リンクカード（OGP）の画像・URLは絶対URLが必要なため、この値から作る。
+const WORDPRESS_ORIGIN = 'https://fiss-vinbows.jp'
+
+// リンクカード用のOGP（ページ情報）をindex.htmlへ追加する。画像とURLは公開先が決まっているWordPress版のみ。
+const NL = String.fromCharCode(10)
+function ogpPlugin(mode: string): Plugin {
+  const title = '人狼GM記録ツール'
+  const description = 'アルティメット人狼の対面プレイ用、GM専用の進行記録ツール（AIプレイヤー参加対応）'
+  const pageUrl = WORDPRESS_ORIGIN + WORDPRESS_BASE
+  const tags = [
+    `<meta property="og:type" content="website" />`,
+    `<meta property="og:site_name" content="${title}" />`,
+    `<meta property="og:title" content="${title}" />`,
+    `<meta property="og:description" content="${description}" />`,
+    `<meta name="twitter:card" content="summary" />`,
+    ...(mode === 'wordpress'
+      ? [
+          `<meta property="og:url" content="${pageUrl}" />`,
+          `<meta property="og:image" content="${pageUrl}pwa-512x512.png" />`,
+          `<meta property="og:image:width" content="512" />`,
+          `<meta property="og:image:height" content="512" />`,
+        ]
+      : []),
+  ]
+  return {
+    name: 'werewolf-ogp',
+    transformIndexHtml: (html) => html.replace('</head>', tags.map((t) => `    ${t}`).join(NL) + NL + '  </head>'),
+  }
+}
 export default defineConfig(({ mode }) => ({
   base: mode === 'electron' || mode === 'standalone' ? './' : mode === 'wordpress' ? WORDPRESS_BASE : '/',
   build: outDirs[mode] ? { outDir: outDirs[mode] } : undefined,
@@ -28,6 +57,7 @@ export default defineConfig(({ mode }) => ({
   },
   plugins: [
     react(),
+    ogpPlugin(mode),
     mode === 'standalone' && viteSingleFile(),
     mode !== 'electron' &&
       mode !== 'standalone' &&
