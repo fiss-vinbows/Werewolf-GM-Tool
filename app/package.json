@@ -17,7 +17,7 @@
     "build:standalone": "tsc -b && vite build --mode standalone",
     "dist:zip": "npm run build:standalone && node scripts/make-zip.mjs",
     "build:wordpress": "tsc -b && vite build --mode wordpress",
-    "dist:wordpress": "npm run build:wordpress && node scripts/make-wordpress-zip.mjs",
+    "dist:wordpress": "npm run build:wordpress && node scripts/make-wordpress-folder.mjs",
     "sim": "vite-node src/sim/run.ts --"
   },
   "dependencies": {

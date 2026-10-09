@@ -17,7 +17,7 @@ const buildDate = new Date().toLocaleDateString('ja-JP', { timeZone: 'Asia/Tokyo
 // （https://fiss-vinbows.jp/wp-content/werewolf/）。PWAはそのまま使う
 // （スマートフォンのホーム画面に追加でき、1度開けばオフラインでも動く）。
 const outDirs: Record<string, string> = { standalone: 'dist-standalone', wordpress: 'dist-wordpress' }
-// WordPress版の置き場所（URLのパス）。変更する場合は scripts/make-wordpress-zip.mjs のフォルダ名も合わせる。
+// WordPress版の置き場所（URLのパス）。変更する場合は scripts/make-wordpress-folder.mjs のフォルダ名も合わせる。
 const WORDPRESS_BASE = '/wp-content/werewolf/'
 // WordPress版の公開先。リンクカード（OGP）の画像・URLは絶対URLが必要なため、この値から作る。
 const WORDPRESS_ORIGIN = 'https://fiss-vinbows.jp'

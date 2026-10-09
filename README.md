@@ -74,13 +74,13 @@ WordPressのサーバーの `wp-content/werewolf` フォルダに置き、
 npm --prefix app run dist:wordpress
 ```
 
-1. `app/release/WerewolfGMTool-WordPress-<版>.zip` ができます（中身は `werewolf` フォルダ）。
-2. サーバーのファイルマネージャー（またはFTP）で、WordPressの `wp-content` フォルダにzipをアップロードして展開します。
+1. `app/release/WerewolfGMTool-WordPress-<版>/werewolf` フォルダができます（`app/dist-wordpress` と同じ中身）。
+2. サーバーのファイルマネージャー（またはFTP）で、この `werewolf` フォルダの中身をWordPressの `wp-content/werewolf/` にアップロードして上書きします。`assets` フォルダ・`sw.js`・`workbox-〜.js` も忘れずにアップロードしてください。
 3. `https://fiss-vinbows.jp/wp-content/werewolf/` を開いて確認します。WordPressのメニューにこのURLへのリンクを追加すると便利です。
 
 - 記録はそれぞれの端末のブラウザ内に保存されます。PCとスマートフォンで記録は共有されません。
 - 更新するときは、同じ手順で `werewolf` フォルダを上書きします。開いている端末は次回起動時に新しい版へ切り替わります。
-- 置き場所を変える場合は、`app/vite.config.ts` の `WORDPRESS_BASE` と `app/scripts/make-wordpress-zip.mjs` のフォルダ名を変更してからビルドします。
+- 置き場所を変える場合は、`app/vite.config.ts` の `WORDPRESS_BASE` と `app/scripts/make-wordpress-folder.mjs` のフォルダ名を変更してからビルドします。
 
 ## ディレクトリ構成
 
