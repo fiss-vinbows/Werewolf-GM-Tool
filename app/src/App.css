@@ -713,3 +713,13 @@ button {
 .chip-vote.drop-hover {
   outline: 2px dashed #e0c040;
 }
+
+/* 折りたためる操作説明 */
+.help-note > summary {
+  cursor: pointer;
+  font-size: 0.85rem;
+  opacity: 0.8;
+}
+.help-note > .hint {
+  margin-top: 4px;
+}

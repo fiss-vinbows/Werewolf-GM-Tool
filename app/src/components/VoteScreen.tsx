@@ -6,6 +6,7 @@ import { PlayerName } from './PlayerName'
 import { isGivingLastWords } from '../domain/speech'
 import { formatWolfResult } from '../domain/resultLabel'
 import { startDragAutoScroll } from './dragAutoScroll'
+import { HelpNote } from './HelpNote'
 
 const ROLE_ORDER: RoleKey[] = ['wolf', 'madman', 'seer', 'medium', 'bodyguard', 'villager']
 
@@ -200,10 +201,11 @@ function VoteRoundBoard({ round, alivePlayers }: { round: VoteRound; alivePlayer
         {round.aiOrder ? `　AI順: ${round.aiOrder}番目` : ''}
         {round.resolved ? '　【確定済み】' : ''}
       </h3>
-      <p className="hint">
+      <HelpNote id="vote">
         左の未投票プレイヤーを、右の投票先へドラッグしてください。役職ラベルをプレイヤーへドラッグすると、投票中のCO（何票目の後かも記録）ができます。
+        投票先の枠の中に並んだ投票済みの名前に役職ラベルを置くと、投票先ではなくその投票者本人のCOとして記録します。
         {round.kind !== 'normal' && '決選投票では、少数派だけをドラッグしたあと「残りを一括投票」でもう一方に全員投票させると時短になります。'}
-      </p>
+      </HelpNote>
 
       <div className="co-source-row">
         {ROLE_ORDER.map((role) => (

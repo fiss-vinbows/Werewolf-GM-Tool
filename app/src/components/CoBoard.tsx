@@ -5,6 +5,7 @@ import { DEFAULT_ROLE_NAMES, ROLE_LAYOUT_ROWS, type Player, type PlayerId, type 
 import { PlayerName } from './PlayerName'
 import { canSpeak } from '../domain/speech'
 import { startDragAutoScroll } from './dragAutoScroll'
+import { HelpNote } from './HelpNote'
 
 const ROLE_ORDER: RoleKey[] = ['wolf', 'madman', 'seer', 'medium', 'bodyguard', 'villager']
 // 予言者・霊媒師は白丸／黒丸の2アイコン、狩人は護衛順を示す○アイコン1つだけを使う（要求7・要求4）。
@@ -216,11 +217,11 @@ export function CoBoard() {
 
   return (
     <div className="co-board">
-      <p className="hint">
+      <HelpNote id="co-board">
         役職ラベルをプレイヤー名へドラッグするとCOを記録し、名前がその役職の色の枠で囲まれます。同じ人へ別の役職を重ねるとスライドとして記録します。枠で囲まれた名前を押すと、撤回・誤記取り消しができます。
         予言者・霊媒師CO した人は名前の両端に白丸／黒丸、狩人CO した人は左側に○（護衛先）・右側にG（護衛成功した先）が出るので、対象者へドラッグすると判定・護衛順を記録できます（記録した順番を対象日として扱います）。
         霊媒は処刑されたプレイヤーのみが対象です。予言結果と護衛先（○・G）は死亡したプレイヤーにも記録できます。COの新規記録は生存者にのみ行え、死亡したプレイヤーは撤回もできません。
-      </p>
+      </HelpNote>
 
       <div className="co-source-row">
         {ROLE_ORDER.map((role) => (
