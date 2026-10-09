@@ -1,12 +1,13 @@
 // スプレッドシート用のCSV書き出し（ユーザー提供の様式 input/無題のスプレッドシート - シート1.csv に合わせる）。
-// 左側（A〜C列）：プレイヤー・実際の役職・補足（AI、騙り予言者1 など）。
-// 右側（D列〜）：日ごとの出来事。列はその出来事が起きた「夜の日付」（初日＝1日目）にそろえる。
+// 左側（A〜D列）：プレイヤー・実際の役職・生死（「3日目襲撃」など）・補足（AI、騙り予言者1 など）。
+// 右側（E列〜）：日ごとの出来事。列はその出来事が起きた「夜の日付」（初日＝1日目）にそろえる。
 //   処刑：その日の処刑者／襲撃：その夜の襲撃先（護衛されたら「（失敗）」）
 //   予言者：「初日」に初日白の通知先、2日目以降は前の夜の予言結果（初日白の通知を初日に置くため1日ずれる）
 //   霊媒師・狩人：本物の役職者のその夜の結果（狩人は護衛先、成功なら「（護衛）」）
 //   騙り○○N：偽物の公表結果を公表した順に（死亡した次の日は「－」）
 //   AI投票：AIがその日に投票した相手（AIがいる対戦のみ）
-// 表の下（1行空けて）：対戦日・ゲームID・勝利陣営・終了日・人数。
+// 表の下（1行ずつ空けて）：投票履歴（プレイヤーごと・日ごとの投票先）、CO履歴、結果公表の履歴、
+// 対戦情報（対戦日・ゲームID・勝利陣営・終了日・人数）。
 import type { GameState, PlayerId, RoleKey } from './types'
 
 const JUDGE_ROLES: RoleKey[] = ['seer', 'medium', 'bodyguard']
@@ -121,16 +122,59 @@ export function exportResultCsv(game: GameState): string {
     return notes.join('・')
   }
 
-  const rows: string[][] = [['プレイヤー', '役職', '', '', ...dayHeaders]]
+  // 生死：死亡した日と公表された死因（「3日目襲撃」）。生存者は「生存」。
+  const lifeOf = (id: PlayerId): string => {
+    const p = game.players.find((x) => x.id === id)!
+    if (p.alive || !p.death) return '生存'
+    return `${p.death.day}日目${p.death.publicCause ?? (p.death.trueCause === 'execution' ? '処刑' : '死亡')}`
+  }
+
+  const rows: string[][] = [['プレイヤー', '役職', '生死', '', '', ...dayHeaders]]
   const n = Math.max(players.length, eventRows.length)
   for (let i = 0; i < n; i++) {
     const p = players[i]
-    const left = p ? [p.displayName, p.actualRole ? roleName(p.actualRole) : '', notesOf(p.id)] : ['', '', '']
+    const left = p ? [p.displayName, p.actualRole ? roleName(p.actualRole) : '', lifeOf(p.id), notesOf(p.id)] : ['', '', '', '']
     const ev = eventRows[i]
     rows.push([...left, ev ? ev[0] : '', ...(ev ? ev[1] : dayHeaders.map(() => ''))])
   }
+  const pad = ['', '', '', '']
+  const kindLabel = (k: string) => (k === 'normal' ? '' : k === 'runoff1' ? '決選1' : '決選2')
 
-  // 表の下に1行空けて、対戦の情報をまとめる。
+  // 投票履歴：プレイヤーごとに、日ごとの投票先（決選があれば「A／決選1:B」のように続ける）。
+  rows.push([])
+  rows.push(['投票履歴', ...pad.slice(1), '', ...dayHeaders])
+  for (const p of players) {
+    const cells = dayHeaders.map((_, i) =>
+      game.voteRounds
+        .filter((r) => r.day === i + 1)
+        .flatMap((r) => {
+          const v = r.votes.find((x) => x.voterId === p.id)
+          return v ? [`${kindLabel(r.kind) ? `${kindLabel(r.kind)}:` : ''}${nameOf(v.targetId)}`] : []
+        })
+        .join('／'),
+    )
+    rows.push([p.displayName, ...pad.slice(1), '', ...cells])
+  }
+
+  // CO履歴：COした順に、日・プレイヤー・役職・状態・補足（遺言、投票中なら何票目の後か）。
+  const coStatus: Record<string, string> = { active: 'CO中', retracted: '撤回', changed: '変更' }
+  rows.push([])
+  rows.push(['CO履歴', '日', '役職', '状態', '補足'])
+  for (const c of [...game.coRecords].sort((a, b) => a.eventOrder - b.eventOrder)) {
+    const memo = [c.note, c.afterVoteCount != null ? `${c.afterVoteCount}票目の後` : ''].filter(Boolean).join('・')
+    rows.push([nameOf(c.playerId), `${c.day}日目`, roleName(c.claimedRole), coStatus[c.status] ?? c.status, memo])
+  }
+
+  // 結果公表の履歴：公表した順に、発言者・公表日・種類・対象・結果。
+  const claimKind: Record<string, string> = { seer: roleName('seer'), medium: roleName('medium'), guard: roleName('bodyguard') }
+  const claimResult = (r: string) => (r === 'guarded' ? '護衛' : r === 'guard-success' ? '護衛成功' : bw(r))
+  rows.push([])
+  rows.push(['結果公表の履歴', '公表日', '種類', '対象', '結果'])
+  for (const c of [...game.resultClaims].sort((a, b) => a.eventOrder - b.eventOrder)) {
+    rows.push([nameOf(c.speakerId), `${c.announcedDay}日目`, claimKind[c.kind] ?? c.kind, nameOf(c.targetId), `${claimResult(c.result)}${c.retracted ? '（訂正済み）' : ''}`])
+  }
+
+  // 対戦の情報。
   const created = new Date(game.meta.createdAt)
   const date = Number.isNaN(created.getTime()) ? '' : created.toLocaleDateString('ja-JP', { timeZone: 'Asia/Tokyo' })
   const winner = game.finished ? (game.winner === 'village' ? '村人陣営' : game.winner === 'wolf' ? '人狼陣営' : '') : '（進行中）'
