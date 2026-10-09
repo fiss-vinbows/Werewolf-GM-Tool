@@ -18,7 +18,8 @@ export type FakePattern =
 
 export const FAKE_PATTERNS: FakePattern[] = ['madSeer', 'wolfSeer', 'madSeerWolfMedium', 'madWolfSeer', 'noFake']
 
-export type SimResult = { winner: 'village' | 'wolf' | 'draw'; days: number; pattern: FakePattern }
+// game：終了時点の対局記録（CSV書き出しなどの確認用）。
+export type SimResult = { winner: 'village' | 'wolf' | 'draw'; days: number; pattern: FakePattern; game: GameState }
 
 // 再現性のある乱数（mulberry32）。
 export function seededRng(seed: number): Rng {
@@ -154,6 +155,13 @@ export function simulateGame(params: AiParams, pattern: FakePattern, rng: Rng, l
     }
   }
 
+  const finish = (w: 'village' | 'wolf' | 'draw'): SimResult => {
+    g.phase = 'finished'
+    g.finished = w !== 'draw'
+    g.winner = w === 'draw' ? null : w
+    return { winner: w, days: g.day, pattern, game: g }
+  }
+
   const winner = (): 'village' | 'wolf' | null => {
     const w = g.players.filter((p) => p.alive && p.actualRole === 'wolf').length
     const o = g.players.filter((p) => p.alive && p.actualRole !== 'wolf').length
@@ -222,7 +230,7 @@ export function simulateGame(params: AiParams, pattern: FakePattern, rng: Rng, l
     }
     log?.(`  処刑: ${executed ? `${executed}(${roleOf(executed)})` : 'なし'}`)
     const w1 = winner()
-    if (w1) return { winner: w1, days: g.day, pattern }
+    if (w1) return finish(w1)
 
     // 夜：予言 → 霊媒 → 護衛 → 襲撃。
     g.phase = 'night'
@@ -265,7 +273,8 @@ export function simulateGame(params: AiParams, pattern: FakePattern, rng: Rng, l
       g.players = g.players.map((p) => (p.id === attack ? { ...p, alive: false, death: { day: g.day, phase: 'night', trueCause: 'wolf-attack', publicCause: '襲撃' } } : p))
     }
     const w2 = winner()
-    if (w2) return { winner: w2, days: g.day, pattern }
+    if (w2) return finish(w2)
   }
-  return { winner: 'draw', days: MAX_DAYS, pattern }
+  g.day = MAX_DAYS
+  return finish('draw')
 }
