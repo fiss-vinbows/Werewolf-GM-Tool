@@ -5,6 +5,12 @@
   --menu-bg: #ffffff;
   --name-bg: rgba(0, 0, 0, 0.03);
   --name-border: rgba(0, 0, 0, 0.18);
+  --field-bg: #ffffff;
+  --field-text: #1b1b1f;
+  --field-border: #8a8a93;
+  --btn-bg: #f0f0f3;
+  --btn-text: #1b1b1f;
+  --btn-border: #8a8a93;
   color-scheme: light dark;
   font: 16px/145% system-ui, 'Segoe UI', Roboto, sans-serif;
   color: var(--text);
@@ -18,6 +24,12 @@
     --menu-bg: #2a2a30;
     --name-bg: rgba(255, 255, 255, 0.05);
     --name-border: transparent;
+    --field-bg: #2a2a30;
+    --field-text: #e5e5e5;
+    --field-border: #5a5a63;
+    --btn-bg: #34343c;
+    --btn-text: #e5e5e5;
+    --btn-border: #5a5a63;
   }
 }
 
@@ -31,6 +43,12 @@
   --menu-bg: #2a2a30;
   --name-bg: rgba(255, 255, 255, 0.05);
   --name-border: transparent;
+  --field-bg: #2a2a30;
+  --field-text: #e5e5e5;
+  --field-border: #5a5a63;
+  --btn-bg: #34343c;
+  --btn-text: #e5e5e5;
+  --btn-border: #5a5a63;
   color-scheme: dark;
 }
 
@@ -50,4 +68,29 @@ body {
 
 button {
   cursor: pointer;
+}
+
+/* 文字入力欄・ボタン（タブを含む）を配色に合わせる。ブラウザ任せにすると、iPhoneなどで
+   ダークモードでも入力欄が白いまま（文字も白で見えない）になることがあるため、明示的に色を付ける。 */
+input:not([type='checkbox']):not([type='radio']),
+select,
+textarea {
+  background-color: var(--field-bg);
+  color: var(--field-text);
+  border: 1px solid var(--field-border);
+  border-radius: 4px;
+  padding: 3px 6px;
+}
+
+button {
+  background-color: var(--btn-bg);
+  color: var(--btn-text);
+  border: 1px solid var(--btn-border);
+  border-radius: 4px;
+  padding: 3px 8px;
+}
+
+button:disabled {
+  opacity: 0.45;
+  cursor: default;
 }

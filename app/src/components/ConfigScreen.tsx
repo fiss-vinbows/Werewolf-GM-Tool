@@ -62,7 +62,7 @@ export function ConfigScreen() {
           昼フェイズの議論タイマー（カウントダウン・分）
           <MinutesField value={Math.round(game.dayTimer.durationMs / 60000)} onCommit={setDayTimerMinutes} />
         </label>
-        <p className="hint">昼フェイズ画面でも同じ設定を変更できます。タッチパネルで操作しているときは、数字を上下にスライドして選べます。</p>
+        <p className="hint">昼フェイズ画面でも同じ設定を変更できます。タッチパネルで操作しているときは、数字をタップすると選択画面が開き、上下にスライドして選べます。</p>
         <label className="row" style={{ alignItems: 'center' }}>
           <span>人狼／人間の表示方法（人狼・人間 ⇔ 黒・白）</span>
           <span className="toggle-with-labels">
