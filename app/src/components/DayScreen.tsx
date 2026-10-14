@@ -4,7 +4,7 @@ import { DEFAULT_ROLE_NAMES, type CoStatus, type ResultClaimKind, type RoleKey }
 import { formatWolfResult } from '../domain/resultLabel'
 import { CoBoard } from './CoBoard'
 import { canSpeak } from '../domain/speech'
-import { MinutesField } from './MinutesField'
+import { TimerMinutesField } from './WheelField'
 
 const CO_STATUS_LABELS: Record<CoStatus, string> = {
   active: 'CO中',
@@ -82,7 +82,7 @@ export function DayScreen({ onGoToVote }: { onGoToVote?: () => void }) {
           <button onClick={() => resetDayTimer()}>リセット</button>
           <label>
             残り時間設定（分）
-            <MinutesField value={Math.round(game.dayTimer.durationMs / 60000)} onCommit={setDayTimerMinutes} />
+            <TimerMinutesField minutes={Math.round(game.dayTimer.durationMs / 60000)} onCommit={setDayTimerMinutes} />
           </label>
           {!game.discussionEnded && <button onClick={() => endDiscussion()}>議論を切り上げる</button>}
         </div>

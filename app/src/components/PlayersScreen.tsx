@@ -10,6 +10,7 @@ import {
 import { validateRoleAssignment } from '../domain/roleValidation'
 import { RoleBoard } from './RoleBoard'
 import { useRosterStore } from '../store/rosterStore'
+import { WheelField } from './WheelField'
 
 // 「未確認を村人にする」は、それより前の段階（人狼→予言者→霊媒師→狩人→狂人）が
 // すべて確定してから使えるようにする（役職確認順の途中で村人に丸められないようにする）。
@@ -47,17 +48,26 @@ export function PlayersScreen({ onRegistered }: { onRegistered?: () => void }) {
         {game.phase === 'setup' ? (
           <label>
             参加人数
-            <select
+            <WheelField
               value={game.meta.playerCount}
-              onChange={(e) => setPlayerCount(Number(e.target.value) as SupportedPlayerCount)}
-              style={{ width: 100 }}
-            >
-              {SUPPORTED_PLAYER_COUNTS.map((c) => (
-                <option key={c} value={c}>
-                  {c}人
-                </option>
-              ))}
-            </select>
+              options={SUPPORTED_PLAYER_COUNTS.map((c) => ({ value: c, label: String(c) }))}
+              unit="人"
+              title="参加人数"
+              onCommit={(v) => v != null && setPlayerCount(v as SupportedPlayerCount)}
+              fallback={
+                <select
+                  value={game.meta.playerCount}
+                  onChange={(e) => setPlayerCount(Number(e.target.value) as SupportedPlayerCount)}
+                  style={{ width: 100 }}
+                >
+                  {SUPPORTED_PLAYER_COUNTS.map((c) => (
+                    <option key={c} value={c}>
+                      {c}人
+                    </option>
+                  ))}
+                </select>
+              }
+            />
           </label>
         ) : (
           <p className="hint">参加人数の変更は登録完了前のみ可能です。</p>

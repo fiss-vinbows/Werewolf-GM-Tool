@@ -2,7 +2,11 @@ import { useState } from 'react'
 import { useGameStore } from '../store/gameStore'
 import { DEFAULT_ROLE_NAMES, type RoleKey } from '../domain/types'
 import { useUiStore, type ThemeMode } from '../store/uiStore'
-import { MinutesField } from './MinutesField'
+import { NumberInput, TimerMinutesField, WheelField } from './WheelField'
+import { numberOptions } from './wheelOptions'
+
+// AI中央投票順の選択肢（未設定＋1〜14番目）。
+const AI_ORDER_OPTIONS = [{ value: null, label: 'なし' }, ...numberOptions(1, 14)]
 
 const THEME_OPTIONS: { value: ThemeMode; label: string }[] = [
   { value: 'system', label: '端末の設定に合わせる' },
@@ -50,19 +54,30 @@ export function ConfigScreen() {
         </label>
         <label>
           通常投票のAI中央投票順（初期値）
-          <input
-            type="number"
-            min={1}
-            value={game.meta.defaultAiOrder ?? ''}
-            onChange={(e) => updateMeta({ defaultAiOrder: e.target.value === '' ? null : Number(e.target.value) })}
+          <WheelField
+            value={game.meta.defaultAiOrder}
+            options={AI_ORDER_OPTIONS}
+            unit="番目"
+            title="AI中央投票順"
+            onCommit={(v) => updateMeta({ defaultAiOrder: v })}
+            fallback={
+              <NumberInput
+                key={game.meta.defaultAiOrder ?? ''}
+                value={game.meta.defaultAiOrder}
+                min={1}
+                max={14}
+                allowEmpty
+                onCommit={(v) => updateMeta({ defaultAiOrder: v })}
+              />
+            }
           />
         </label>
         <p className="hint">投票ラウンド開始時にAI中央投票順の初期値として入力済みの状態にします。ラウンドごとに変更も可能です。</p>
         <label>
           昼フェイズの議論タイマー（カウントダウン・分）
-          <MinutesField value={Math.round(game.dayTimer.durationMs / 60000)} onCommit={setDayTimerMinutes} />
+          <TimerMinutesField minutes={Math.round(game.dayTimer.durationMs / 60000)} onCommit={setDayTimerMinutes} />
         </label>
-        <p className="hint">昼フェイズ画面でも同じ設定を変更できます。タッチパネルで操作しているときは、数字をタップすると選択画面が開き、上下にスライドして選べます。</p>
+        <p className="hint">昼フェイズ画面でも同じ設定を変更できます。タッチパネルで操作しているときは、数字をタップすると選択画面が開き、上下にスライドして選べます（数字の設定はすべて同じ操作です）。</p>
         <label className="row" style={{ alignItems: 'center' }}>
           <span>人狼／人間の表示方法（人狼・人間 ⇔ 黒・白）</span>
           <span className="toggle-with-labels">

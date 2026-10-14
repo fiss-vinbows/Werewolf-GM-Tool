@@ -766,8 +766,8 @@ button {
   margin-top: 4px;
 }
 
-/* 分のドラム式選択（タッチ操作時のみ。iPhoneのアラーム設定風）。 */
-.minutes-wheel {
+/* 数字のドラム式選択（タッチ操作時のみ。iPhoneのアラーム設定風）。 */
+.wheel {
   position: relative;
   display: flex;
   align-items: center;
@@ -775,7 +775,7 @@ button {
   width: 100%;
   user-select: none;
 }
-.minutes-wheel-scroll {
+.wheel-scroll {
   height: 100%;
   width: 60px;
   overflow-y: scroll;
@@ -787,10 +787,10 @@ button {
   mask-image: linear-gradient(to bottom, transparent, #000 35%, #000 65%, transparent);
   -webkit-mask-image: linear-gradient(to bottom, transparent, #000 35%, #000 65%, transparent);
 }
-.minutes-wheel-scroll::-webkit-scrollbar {
+.wheel-scroll::-webkit-scrollbar {
   display: none;
 }
-.minutes-wheel-item {
+.wheel-item {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -799,12 +799,12 @@ button {
   font-variant-numeric: tabular-nums;
   opacity: 0.45;
 }
-.minutes-wheel-item.selected {
+.wheel-item.selected {
   opacity: 1;
   font-weight: 600;
   font-size: 1.3rem;
 }
-.minutes-wheel-band {
+.wheel-band {
   position: absolute;
   left: 16px;
   right: 16px;
@@ -812,14 +812,14 @@ button {
   background: rgba(128, 128, 128, 0.18);
   pointer-events: none;
 }
-.minutes-wheel-unit {
+.wheel-unit {
   position: relative;
   margin-left: 4px;
   font-size: 1rem;
 }
 
 /* 通常時は設定された数字だけを表示し、タップで選択画面を開く。 */
-.minutes-display {
+.wheel-display {
   align-self: flex-start;
   background: none;
   border: none;
@@ -831,7 +831,7 @@ button {
   text-decoration: underline dotted;
   text-underline-offset: 4px;
 }
-.minutes-sheet-backdrop {
+.wheel-sheet-backdrop {
   position: fixed;
   inset: 0;
   z-index: 1100;
@@ -840,7 +840,7 @@ button {
   align-items: flex-end;
   justify-content: center;
 }
-.minutes-sheet {
+.wheel-sheet {
   width: 100%;
   max-width: 420px;
   background: var(--menu-bg);
@@ -849,17 +849,17 @@ button {
   padding: 10px 12px calc(16px + env(safe-area-inset-bottom));
   box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.3);
 }
-.minutes-sheet-actions {
+.wheel-sheet-actions {
   display: flex;
   align-items: center;
   justify-content: space-between;
   margin-bottom: 6px;
 }
-.minutes-sheet-actions button {
+.wheel-sheet-actions button {
   padding: 6px 14px;
   font-size: 1rem;
 }
-.minutes-sheet-ok {
+.wheel-sheet-ok {
   background: #6a5acd !important;
   color: white !important;
   border-color: #6a5acd !important;

@@ -1,6 +1,11 @@
 import { useState } from 'react'
 import { useRosterStore } from '../store/rosterStore'
 import { useGameStore } from '../store/gameStore'
+import { WheelField } from './WheelField'
+import { numberOptions } from './wheelOptions'
+
+const GAME_COUNT_OPTIONS = numberOptions(1, 20)
+const SEAT_OPTIONS = numberOptions(1, 14)
 
 // 参加者選出：13〜14人を超える参加者から、複数戦でまんべんなく参加できるように各試合の参加者を選ぶ。
 export function RosterScreen({ onApplied }: { onApplied?: () => void }) {
@@ -182,11 +187,25 @@ export function RosterScreen({ onApplied }: { onApplied?: () => void }) {
         <div className="row">
           <label>
             試合数
-            <input type="number" min={1} max={20} value={r.plannedGames} onChange={(e) => r.setPlannedGames(Number(e.target.value))} style={{ width: 70 }} />
+            <WheelField
+              value={r.plannedGames}
+              options={GAME_COUNT_OPTIONS}
+              unit="戦"
+              title="試合数"
+              onCommit={(v) => v != null && r.setPlannedGames(v)}
+              fallback={<input type="number" min={1} max={20} value={r.plannedGames} onChange={(e) => r.setPlannedGames(Number(e.target.value))} style={{ width: 70 }} />}
+            />
           </label>
           <label>
             1戦の人間の参加人数
-            <input type="number" min={1} max={14} value={r.seats} onChange={(e) => r.setSeats(Number(e.target.value))} style={{ width: 70 }} />
+            <WheelField
+              value={r.seats}
+              options={SEAT_OPTIONS}
+              unit="人"
+              title="1戦の人間の参加人数"
+              onCommit={(v) => v != null && r.setSeats(v)}
+              fallback={<input type="number" min={1} max={14} value={r.seats} onChange={(e) => r.setSeats(Number(e.target.value))} style={{ width: 70 }} />}
+            />
           </label>
           <span className="hint">現在のAI席: {aiCount}人（人間＋AIで13人か14人）</span>
         </div>
