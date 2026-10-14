@@ -777,7 +777,8 @@ button {
 }
 .wheel-scroll {
   height: 100%;
-  width: 60px;
+  /* 中央の数字の列だけでなく、帯の横幅全体を指で回せるようにする。 */
+  width: 100%;
   overflow-y: scroll;
   scroll-snap-type: y mandatory;
   overscroll-behavior: contain;
@@ -813,8 +814,9 @@ button {
   pointer-events: none;
 }
 .wheel-unit {
-  position: relative;
-  margin-left: 4px;
+  position: absolute;
+  left: calc(50% + 28px);
+  pointer-events: none;
   font-size: 1rem;
 }
 
@@ -834,6 +836,7 @@ button {
 .wheel-sheet-backdrop {
   position: fixed;
   inset: 0;
+  overscroll-behavior: contain;
   z-index: 1100;
   background: rgba(0, 0, 0, 0.45);
   display: flex;

@@ -60,6 +60,21 @@ function WheelPicker({ value, options, onCommit, unit = '', title = '数字を�
   const [open, setOpen] = useState(false)
   const [draft, setDraft] = useState(current)
   const currentLabel = options[current]?.label ?? ''
+
+  // 選択画面を開いている間は後ろのページを固定する（iPhoneではドラムを回すと
+  // ページ全体まで一緒にスクロールしてしまうため）。閉じたら元の位置に戻す。
+  useEffect(() => {
+    if (!open) return
+    const y = window.scrollY
+    const body = document.body.style
+    const saved = { position: body.position, top: body.top, left: body.left, right: body.right, overflow: body.overflow }
+    Object.assign(body, { position: 'fixed', top: `-${y}px`, left: '0', right: '0', overflow: 'hidden' })
+    return () => {
+      Object.assign(body, saved)
+      window.scrollTo(0, y)
+    }
+  }, [open])
+
   return (
     <>
       <button
