@@ -4,6 +4,7 @@ import { DEFAULT_ROLE_NAMES, type CoStatus, type ResultClaimKind, type RoleKey }
 import { formatWolfResult } from '../domain/resultLabel'
 import { CoBoard } from './CoBoard'
 import { canSpeak } from '../domain/speech'
+import { MinutesField } from './MinutesField'
 
 const CO_STATUS_LABELS: Record<CoStatus, string> = {
   active: 'CO中',
@@ -44,7 +45,6 @@ export function DayScreen({ onGoToVote }: { onGoToVote?: () => void }) {
     0,
     game.dayTimer.remainingMs - (game.dayTimer.running && game.dayTimer.startedAt ? Date.now() - new Date(game.dayTimer.startedAt).getTime() : 0),
   )
-  const [minutesInput, setMinutesInput] = useState<string>(String(Math.round(game.dayTimer.durationMs / 60000)))
 
   // タイマーが0になったら、うっかり投票へ進めないよう議論終了フラグを自動で立てる。
   useEffect(() => {
@@ -82,14 +82,7 @@ export function DayScreen({ onGoToVote }: { onGoToVote?: () => void }) {
           <button onClick={() => resetDayTimer()}>リセット</button>
           <label>
             残り時間設定（分）
-            <input
-              type="number"
-              min={0}
-              style={{ width: 60 }}
-              value={minutesInput}
-              onChange={(e) => setMinutesInput(e.target.value)}
-              onBlur={() => setDayTimerMinutes(Number(minutesInput) || 0)}
-            />
+            <MinutesField value={Math.round(game.dayTimer.durationMs / 60000)} onCommit={setDayTimerMinutes} />
           </label>
           {!game.discussionEnded && <button onClick={() => endDiscussion()}>議論を切り上げる</button>}
         </div>

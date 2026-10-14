@@ -18,6 +18,8 @@ type RosterStore = {
   setSeats: (n: number) => void
   generateSchedule: () => void
   toggleParticipant: (gameId: string, memberId: string) => void
+  // 参加／不参加を指定して設定する（ドラッグでまとめて切り替えるとき用）。
+  setParticipant: (gameId: string, memberId: string, on: boolean) => void
   setGameStatus: (gameId: string, status: RosterGame['status']) => void
   clearAll: () => void
 }
@@ -72,12 +74,17 @@ export const useRosterStore = create<RosterStore>()(
           }))
           return { games: [...played, ...planned] }
         }),
-      toggleParticipant: (gameId, memberId) =>
+      toggleParticipant: (gameId, memberId) => {
+        const g = get().games.find((x) => x.id === gameId)
+        if (g) get().setParticipant(gameId, memberId, !g.participantIds.includes(memberId))
+      },
+      setParticipant: (gameId, memberId, on) =>
         set((s) => ({
           games: s.games.map((g) => {
             if (g.id !== gameId || g.status !== 'planned') return g
             const has = g.participantIds.includes(memberId)
-            const ids = has ? g.participantIds.filter((x) => x !== memberId) : [...g.participantIds, memberId]
+            if (has === on) return g
+            const ids = on ? [...g.participantIds, memberId] : g.participantIds.filter((x) => x !== memberId)
             const order = new Map(s.members.map((m, i) => [m.id, i]))
             return { ...g, participantIds: ids.sort((a, b) => (order.get(a) ?? 0) - (order.get(b) ?? 0)) }
           }),

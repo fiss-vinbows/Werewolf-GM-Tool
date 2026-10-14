@@ -1,6 +1,10 @@
+/* 配色。設定画面の「画面の配色」で data-theme（light／dark）を指定でき、未指定なら端末の設定に合わせる。 */
 :root {
   --text: #1b1b1f;
   --bg: #ffffff;
+  --menu-bg: #ffffff;
+  --name-bg: rgba(0, 0, 0, 0.03);
+  --name-border: rgba(0, 0, 0, 0.18);
   color-scheme: light dark;
   font: 16px/145% system-ui, 'Segoe UI', Roboto, sans-serif;
   color: var(--text);
@@ -8,10 +12,26 @@
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme='light']) {
     --text: #e5e5e5;
     --bg: #1b1b1f;
+    --menu-bg: #2a2a30;
+    --name-bg: rgba(255, 255, 255, 0.05);
+    --name-border: transparent;
   }
+}
+
+:root[data-theme='light'] {
+  color-scheme: light;
+}
+
+:root[data-theme='dark'] {
+  --text: #e5e5e5;
+  --bg: #1b1b1f;
+  --menu-bg: #2a2a30;
+  --name-bg: rgba(255, 255, 255, 0.05);
+  --name-border: transparent;
+  color-scheme: dark;
 }
 
 * {
@@ -21,6 +41,7 @@
 body {
   margin: 0;
   min-height: 100svh;
+  background: var(--bg);
 }
 
 #root {

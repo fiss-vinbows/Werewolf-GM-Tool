@@ -195,6 +195,36 @@ button {
   flex: 1 1 180px;
 }
 
+/* 予言者の枠は右側に初日白を表示するため、人狼の枠と同じ幅（霊媒師・狩人の2つ分）にする。 */
+.role-grid > .role-zone-seer {
+  flex: 2 1 370px;
+}
+
+.seer-zone-body {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.seer-zone-body > .chip-row {
+  flex: 1 1 120px;
+}
+
+.day1-white {
+  flex: 0 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 4px 8px;
+  border-left: 1px solid #888;
+  font-size: 0.8rem;
+}
+
+.day1-white select {
+  max-width: 160px;
+}
+
 .chip-row {
   display: flex;
   flex-wrap: wrap;
@@ -334,12 +364,14 @@ button {
   gap: 2px;
   padding: 4px 5px;
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px dashed transparent;
+  background: var(--name-bg);
+  /* ライトモードでは名前の範囲が分かるよう薄い枠を付ける（ダークモードは背景色の差で見えるので枠なし）。 */
+  border: 1px solid var(--name-border);
   min-width: 0;
 }
 
 .player-drop-target.drop-hover {
+  border-style: dashed;
   border-color: #e0c040;
   background: rgba(224, 192, 64, 0.15);
 }
@@ -389,6 +421,11 @@ button {
 
 .role-area-row > .role-area {
   flex: 1 1 220px;
+}
+
+/* 人狼の枠は名前が折り返さないよう、下の段の霊媒師の右端まで伸ばす（予言者＋霊媒師の2つ分の幅）。 */
+.role-area-row > .role-area-wolf {
+  flex: 2 1 450px;
 }
 
 .player-seer-row {
@@ -470,7 +507,7 @@ button {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  background: #2a2a30;
+  background: var(--menu-bg);
   border: 1px solid #555;
   border-radius: 6px;
   padding: 4px;
@@ -627,6 +664,11 @@ button {
   background: rgba(60, 140, 220, 0.18);
 }
 
+.roster-cell.paintable {
+  touch-action: none;
+  user-select: none;
+}
+
 .roster-cell.played {
   cursor: default;
   opacity: 0.7;
@@ -722,4 +764,55 @@ button {
 }
 .help-note > .hint {
   margin-top: 4px;
+}
+
+/* 分のドラム式選択（タッチ操作時のみ。iPhoneのアラーム設定風）。 */
+.minutes-wheel {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  width: 110px;
+  user-select: none;
+}
+.minutes-wheel-scroll {
+  height: 100%;
+  width: 60px;
+  overflow-y: scroll;
+  scroll-snap-type: y mandatory;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+  touch-action: pan-y;
+  /* 上下の端を薄くして、奥へ回り込むように見せる。 */
+  mask-image: linear-gradient(to bottom, transparent, #000 35%, #000 65%, transparent);
+  -webkit-mask-image: linear-gradient(to bottom, transparent, #000 35%, #000 65%, transparent);
+}
+.minutes-wheel-scroll::-webkit-scrollbar {
+  display: none;
+}
+.minutes-wheel-item {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  scroll-snap-align: center;
+  font-size: 1.1rem;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.45;
+}
+.minutes-wheel-item.selected {
+  opacity: 1;
+  font-weight: 600;
+  font-size: 1.3rem;
+}
+.minutes-wheel-band {
+  position: absolute;
+  left: 0;
+  right: 0;
+  border-radius: 8px;
+  background: rgba(128, 128, 128, 0.18);
+  pointer-events: none;
+}
+.minutes-wheel-unit {
+  position: relative;
+  margin-left: 4px;
+  font-size: 1rem;
 }

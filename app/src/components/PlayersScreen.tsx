@@ -22,7 +22,6 @@ export function PlayersScreen({ onRegistered }: { onRegistered?: () => void }) {
   const setPlayerIsAi = useGameStore((s) => s.setPlayerIsAi)
   const fillUnassignedAsVillager = useGameStore((s) => s.fillUnassignedAsVillager)
   const completeRegistration = useGameStore((s) => s.completeRegistration)
-  const setDay1WhiteNotice = useGameStore((s) => s.setDay1WhiteNotice)
 
   const rosterMembers = useRosterStore((s) => s.members)
   // 名簿から手動で選ぶときの候補（出席者を先に表示し、他の席で使用中の名前は除く）
@@ -133,31 +132,10 @@ export function PlayersScreen({ onRegistered }: { onRegistered?: () => void }) {
           </button>
         </div>
         <p className="hint">「登録を完了して1日目へ進む」を押すと、未確認は自動的に村人として登録され、1日目に移行します。</p>
-        {game.meta.day1WhiteNoticeMode === 'manual' ? (
-          <label>
-            初日白（{roleName('seer')}への通知対象・手動選択）
-            <select
-              value={game.day1WhiteNotice ?? ''}
-              onChange={(e) => setDay1WhiteNotice(e.target.value === '' ? null : e.target.value)}
-            >
-              <option value="">（未選択）</option>
-              {game.players
-                .filter((p) => p.actualRole !== 'wolf' && p.actualRole !== 'seer')
-                .map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.displayName}
-                  </option>
-                ))}
-            </select>
-          </label>
-        ) : (
-          game.day1WhiteNotice && (
-            <p>
-              初日白（{roleName('seer')}への通知対象）: <b>{game.players.find((p) => p.id === game.day1WhiteNotice)?.displayName}</b>
-              　※人狼以外の1人として、GMから{roleName('seer')}へ口頭で伝えてください。
-            </p>
-          )
-        )}
+        <p className="hint">
+          初日白（{roleName('seer')}の枠の右側）は、人狼以外の1人としてGMから{roleName('seer')}へ口頭で伝えてください。
+          手動選択にしている場合は、そこで対象を選びます（設定タブで切り替え）。
+        </p>
         {!validation.valid && (
           <p className="hint error">
             人数が仕様と一致していません（未確認は村人扱いで計算）：

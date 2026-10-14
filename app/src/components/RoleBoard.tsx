@@ -14,6 +14,7 @@ const STAGE_ORDER: RoleKey[] = ['wolf', 'seer', 'medium', 'bodyguard', 'madman',
 export function RoleBoard() {
   const game = useGameStore((s) => s.game)
   const setActualRole = useGameStore((s) => s.setActualRole)
+  const setDay1WhiteNotice = useGameStore((s) => s.setDay1WhiteNotice)
   const roleCounts = roleCountsFor(game.players.length)
 
   const [ghost, setGhost] = useState<{ player: Player; x: number; y: number } | null>(null)
@@ -87,6 +88,36 @@ export function RoleBoard() {
     )
   }
 
+  // 予言者の枠の右側に表示する初日白（予言者への通知対象）。手動モードではここで選ぶ。
+  function renderDay1White() {
+    const notice = game.players.find((p) => p.id === game.day1WhiteNotice)
+    return (
+      <div className="day1-white" title={`人狼以外の1人として、GMから${roleName('seer')}へ口頭で伝えてください。`}>
+        <span>初日白</span>
+        {game.meta.day1WhiteNoticeMode === 'manual' ? (
+          <select
+            aria-label="初日白"
+            value={game.day1WhiteNotice ?? ''}
+            onChange={(e) => setDay1WhiteNotice(e.target.value === '' ? null : e.target.value)}
+          >
+            <option value="">（未選択）</option>
+            {game.players
+              .filter((p) => p.actualRole !== 'wolf' && p.actualRole !== 'seer')
+              .map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.displayName}
+                </option>
+              ))}
+          </select>
+        ) : notice ? (
+          <b>{notice.displayName}</b>
+        ) : (
+          <span className="hint">（自動抽選待ち）</span>
+        )}
+      </div>
+    )
+  }
+
   return (
     <div className="role-board">
       <p className="hint">プレイヤーをドラッグして役職エリアへ割り振ってください。未確認へ戻すには上のプール欄へドラッグします。</p>
@@ -112,7 +143,7 @@ export function RoleBoard() {
             return (
               <div
                 key={role}
-                className={`dropzone role-zone${over ? ' over' : ''}${unlocked ? '' : ' locked'}`}
+                className={`dropzone role-zone role-zone-${role}${over ? ' over' : ''}${unlocked ? '' : ' locked'}`}
                 data-dropzone={role}
                 style={unlocked ? undefined : { pointerEvents: 'none' }}
               >
@@ -120,11 +151,22 @@ export function RoleBoard() {
                   {roleName(role)}（{members.length}/{roleCounts[role]}）
                   {blockedBy && <span className="hint">　先に{roleName(blockedBy)}を確定してください</span>}
                 </div>
-                <div className="chip-row">
-                  {members.map((p) => (
-                    <Chip key={p.id} player={p} />
-                  ))}
-                </div>
+                {role === 'seer' ? (
+                  <div className="seer-zone-body">
+                    <div className="chip-row">
+                      {members.map((p) => (
+                        <Chip key={p.id} player={p} />
+                      ))}
+                    </div>
+                    {renderDay1White()}
+                  </div>
+                ) : (
+                  <div className="chip-row">
+                    {members.map((p) => (
+                      <Chip key={p.id} player={p} />
+                    ))}
+                  </div>
+                )}
               </div>
             )
           })}

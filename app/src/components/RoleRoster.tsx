@@ -18,7 +18,7 @@ export function RoleRoster() {
               .sort((a, b) => a.registrationOrder - b.registrationOrder)
             if (members.length === 0) return null
             return (
-              <div key={role} className="role-area" style={{ ['--area-color' as string]: ROLE_COLORS[role] }}>
+              <div key={role} className={`role-area role-area-${role}`} style={{ ['--area-color' as string]: ROLE_COLORS[role] }}>
                 <div className="role-area-label">{roleName(role)}</div>
                 <div className="player-drop-row">
                   {members.map((p) => (

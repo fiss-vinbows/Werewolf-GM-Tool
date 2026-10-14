@@ -32,6 +32,35 @@ export function RosterScreen({ onApplied }: { onApplied?: () => void }) {
     games.filter((g) => (!status || g.status === status) && g.participantIds.includes(id)).length
   const nameOf = (id: string) => r.members.find((m) => m.id === id)?.name ?? '（削除済み）'
 
+  // 試合ごとの参加者表：押した升目を切り替え、そのままドラッグでなぞった升目も同じ状態（参加／不参加）にそろえる。
+  // マウス・タッチの両方で使えるよう、pointermove ごとに指の下の升目を調べる。
+  function startPaint(e: React.PointerEvent, gameId: string, memberId: string, wasOn: boolean) {
+    e.preventDefault()
+    const on = !wasOn
+    const done = new Set<string>()
+    const paint = (gid: string, mid: string) => {
+      const key = `${gid}/${mid}`
+      if (done.has(key)) return
+      done.add(key)
+      r.setParticipant(gid, mid, on)
+    }
+    paint(gameId, memberId)
+    const handleMove = (ev: PointerEvent) => {
+      const cell = (document.elementFromPoint(ev.clientX, ev.clientY) as HTMLElement | null)?.closest('[data-rostercell]') as HTMLElement | null
+      if (!cell) return
+      const [gid, mid] = cell.dataset.rostercell!.split('/')
+      paint(gid, mid)
+    }
+    const handleUp = () => {
+      window.removeEventListener('pointermove', handleMove)
+      window.removeEventListener('pointerup', handleUp)
+      window.removeEventListener('pointercancel', handleUp)
+    }
+    window.addEventListener('pointermove', handleMove)
+    window.addEventListener('pointerup', handleUp)
+    window.addEventListener('pointercancel', handleUp)
+  }
+
   function apply(gameId: string) {
     const g = games.find((x) => x.id === gameId)!
     const ok = applyParticipantNames(g.participantIds.map(nameOf))
@@ -173,7 +202,7 @@ export function RosterScreen({ onApplied }: { onApplied?: () => void }) {
       {games.length > 0 && (
         <section className="card roster-schedule">
           <h2>試合ごとの参加者</h2>
-          <p className="hint">未実施の試合は、セルをクリックして参加者を手動で入れ替えられます。</p>
+          <p className="hint">未実施の試合は、升目を押して参加／不参加を切り替えられます。押したままドラッグすると、なぞった升目をまとめて同じ状態に切り替えます（縦・横どちらにも動かせます）。</p>
           <div style={{ overflowX: 'auto' }}>
             <table>
               <thead>
@@ -196,11 +225,13 @@ export function RosterScreen({ onApplied }: { onApplied?: () => void }) {
                     <td>{m.name}</td>
                     {games.map((g) => {
                       const on = g.participantIds.includes(m.id)
+                      const planned = g.status === 'planned'
                       return (
                         <td
                           key={g.id}
-                          className={`roster-cell${on ? ' on' : ''}${g.status === 'played' ? ' played' : ''}`}
-                          onClick={() => r.toggleParticipant(g.id, m.id)}
+                          className={`roster-cell${on ? ' on' : ''}${planned ? ' paintable' : ' played'}`}
+                          data-rostercell={planned ? `${g.id}/${m.id}` : undefined}
+                          onPointerDown={planned ? (e) => startPaint(e, g.id, m.id, on) : undefined}
                         >
                           {on ? '●' : ''}
                         </td>

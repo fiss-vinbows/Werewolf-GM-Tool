@@ -53,7 +53,7 @@ export function SaveScreen() {
 
       <section className="card">
         <h2>新しい対戦を開始</h2>
-        <p className="hint">過去の戦績は上書きされません。書き出しがまだの場合は、先に保存してください。</p>
+        <p className="hint">過去の戦績は上書きされません。書き出しがまだの場合は、先に保存してください。設定タブの内容（表示方法・役職名・ルールメモ・タイマーなど）は引き継がれます。</p>
         {!confirmingReset ? (
           <button onClick={() => setConfirmingReset(true)}>新規ゲーム開始</button>
         ) : (

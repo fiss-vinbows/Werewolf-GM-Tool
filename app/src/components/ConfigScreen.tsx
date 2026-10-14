@@ -1,6 +1,14 @@
 import { useState } from 'react'
 import { useGameStore } from '../store/gameStore'
 import { DEFAULT_ROLE_NAMES, type RoleKey } from '../domain/types'
+import { useUiStore, type ThemeMode } from '../store/uiStore'
+import { MinutesField } from './MinutesField'
+
+const THEME_OPTIONS: { value: ThemeMode; label: string }[] = [
+  { value: 'system', label: '端末の設定に合わせる' },
+  { value: 'light', label: 'ライトモード' },
+  { value: 'dark', label: 'ダークモード' },
+]
 
 // ゲーム進行とは直接関係のない設定項目（役職名・メモなど）をまとめる。
 export function ConfigScreen() {
@@ -9,12 +17,27 @@ export function ConfigScreen() {
   const setRoleName = useGameStore((s) => s.setRoleName)
   const resetKeepingNames = useGameStore((s) => s.resetKeepingNames)
   const setDayTimerMinutes = useGameStore((s) => s.setDayTimerMinutes)
+  const theme = useUiStore((s) => s.theme)
+  const setTheme = useUiStore((s) => s.setTheme)
   // window.confirm はインストール済みPWAの環境で動かないことがあるため、
   // 画面内の二段階確認（もう一度押すと実行）に置き換える。
   const [confirmingReset, setConfirmingReset] = useState(false)
 
   return (
     <div className="screen">
+      <section className="card">
+        <h2>画面の配色</h2>
+        <div className="row">
+          {THEME_OPTIONS.map((o) => (
+            <label key={o.value} className="row" style={{ margin: 0, flexDirection: 'row' }}>
+              <input type="radio" name="theme" checked={theme === o.value} onChange={() => setTheme(o.value)} />
+              {o.label}
+            </label>
+          ))}
+        </div>
+        <p className="hint">この端末だけの設定です（ゲームの記録とは別に保存され、リセットや新規ゲームでも変わりません）。</p>
+      </section>
+
       <section className="card">
         <h2>ゲーム設定</h2>
         <label>
@@ -37,14 +60,9 @@ export function ConfigScreen() {
         <p className="hint">投票ラウンド開始時にAI中央投票順の初期値として入力済みの状態にします。ラウンドごとに変更も可能です。</p>
         <label>
           昼フェイズの議論タイマー（カウントダウン・分）
-          <input
-            type="number"
-            min={0}
-            defaultValue={Math.round(game.dayTimer.durationMs / 60000)}
-            onBlur={(e) => setDayTimerMinutes(Number(e.target.value) || 0)}
-          />
+          <MinutesField value={Math.round(game.dayTimer.durationMs / 60000)} onCommit={setDayTimerMinutes} />
         </label>
-        <p className="hint">昼フェイズ画面でも同じ設定を変更できます。</p>
+        <p className="hint">昼フェイズ画面でも同じ設定を変更できます。タッチパネルで操作しているときは、数字を上下にスライドして選べます。</p>
         <label className="row" style={{ alignItems: 'center' }}>
           <span>人狼／人間の表示方法（人狼・人間 ⇔ 黒・白）</span>
           <span className="toggle-with-labels">
@@ -95,7 +113,7 @@ export function ConfigScreen() {
 
       <section className="card">
         <h2>登録のリセット</h2>
-        <p className="hint">表示名（参加者の名前）だけを残し、役職・AI設定・進行状況などそれ以外の記録をすべて初期化します。</p>
+        <p className="hint">表示名（参加者の名前）・参加人数とこの画面の設定（表示方法・役職名・ルールメモ・タイマーなど）を残し、役職・AI設定・自由メモ・進行状況などの記録を初期化します。</p>
         {!confirmingReset ? (
           <button onClick={() => setConfirmingReset(true)}>参加者の名前以外をリセット</button>
         ) : (

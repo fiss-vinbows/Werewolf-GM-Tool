@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import { createInitialGameState, newEventId } from '../domain/factory'
+import { createInitialGameState, createInitialPlayers, newEventId } from '../domain/factory'
 import { ROLE_COUNTS, type SupportedPlayerCount } from '../domain/types'
 import { validateRoleAssignment } from '../domain/roleValidation'
 import { buildAiView } from '../domain/ai/view'
@@ -33,6 +33,47 @@ function cloneState(state: GameState): GameState {
   return typeof structuredClone === 'function'
     ? structuredClone(state)
     : (JSON.parse(JSON.stringify(state)) as GameState)
+}
+
+// 新しい状態を作る。設定画面の項目（表示方法・役職名・ルールメモ・タイマーなど）は試合の記録ではないため引き継ぐ。
+function createStateKeepingSettings(prev: GameState): GameState {
+  const fresh = createInitialGameState()
+  const m = prev.meta
+  fresh.meta = {
+    ...fresh.meta,
+    ruleNote: m.ruleNote,
+    roleNames: m.roleNames,
+    defaultAiOrder: m.defaultAiOrder,
+    defaultTimerSeconds: m.defaultTimerSeconds,
+    resultLabelStyle: m.resultLabelStyle,
+    day1WhiteNoticeMode: m.day1WhiteNoticeMode,
+  }
+  const durationMs = prev.dayTimer.durationMs
+  fresh.dayTimer = { ...fresh.dayTimer, durationMs, remainingMs: durationMs }
+  return fresh
+}
+
+// その夜の処理がどこまで終わったか（0:未入力 1:襲撃 2:予言 3:霊媒 4:護衛まで終了）。
+function nightLevel(g: GameState): number {
+  const n = g.nightRecords.find((r) => r.day === g.day)
+  if (!n?.wolf) return 0
+  if (!n.seer && !n.seerSkipped) return 1
+  if (!n.medium && !n.mediumSkipped) return 2
+  if (!n.bodyguard && !n.guardSkipped) return 3
+  return 4
+}
+
+// その段階まで戻したとき、夜画面が次の処理を自動で記録してしまうか（霊媒は常に自動、
+// 予言者・狩人は前日までに死亡していれば自動スキップ）。自動で進む段階には戻しても意味がない。
+function nightStepAutoAdvances(g: GameState, level: number): boolean {
+  if (level === 2) return true
+  const role = level === 1 ? 'seer' : level === 3 ? 'bodyguard' : null
+  if (!role) return false
+  const p = g.players.find((pl) => pl.actualRole === role)
+  if (!p || p.alive) return false
+  // 今夜の襲撃で仮に死亡表示になっているだけなら、まだ行動できる。
+  const wolfTarget = g.nightRecords.find((r) => r.day === g.day)?.wolf?.targetId
+  return !(p.death?.trueCause === 'wolf-attack' && p.death.day === g.day && wolfTarget === p.id)
 }
 
 function nextEventOrder(state: GameState): number {
@@ -95,6 +136,8 @@ type GameStore = {
   // ラベル付きで「1つ戻る」用スナップショットを積む。
   pushHistory: (label: string) => void
   undo: () => void
+  // 夜の行動を、GMが入力した手順単位で1つ戻す（自動で記録される霊媒・スキップは飛ばして、その前の入力まで戻す）。
+  undoNightStep: () => void
   resetGame: () => void
 
   updateMeta: (patch: Partial<GameState['meta']>) => void
@@ -222,7 +265,24 @@ export const useGameStore = create<GameStore>()(
           return { game: { ...restored, history } }
         }),
 
-      resetGame: () => set({ game: createInitialGameState() }),
+      undoNightStep: () =>
+        set((s) => {
+          const level = nightLevel(s.game)
+          if (s.game.phase !== 'night' || level === 0) return s
+          let target = level - 1
+          while (target > 0 && nightStepAutoAdvances(s.game, target)) target--
+          // AIの判断など途中の記録もまとめて戻し、目標の段階になるまで履歴をさかのぼる。
+          const history = [...s.game.history]
+          let g: GameState = s.game
+          while (nightLevel(g) > target) {
+            const last = history.pop()
+            if (!last) return s
+            g = { ...(JSON.parse(last.snapshot) as Omit<GameState, 'history'>), history }
+          }
+          return { game: { ...g, history } }
+        }),
+
+      resetGame: () => set((s) => ({ game: createStateKeepingSettings(s.game) })),
 
       updateMeta: (patch) =>
         set((s) => ({
@@ -844,8 +904,14 @@ export const useGameStore = create<GameStore>()(
 
       resetKeepingNames: () => {
         set((s) => {
-          const fresh = createInitialGameState()
-          fresh.players = fresh.players.map((p, i) => ({ ...p, displayName: s.game.players[i]?.displayName ?? p.displayName }))
+          // 設定に加えて、参加人数と表示名も残す。
+          const fresh = createStateKeepingSettings(s.game)
+          const count = s.game.meta.playerCount
+          fresh.meta.playerCount = count
+          fresh.players = createInitialPlayers(count).map((p, i) => ({
+            ...p,
+            displayName: s.game.players[i]?.displayName ?? p.displayName,
+          }))
           return { game: fresh }
         })
       },

@@ -14,7 +14,7 @@ export function NightScreen({ onNextDay }: { onNextDay?: () => void }) {
   const skipGuardAction = useGameStore((s) => s.skipGuardAction)
   const setWolfAction = useGameStore((s) => s.setWolfAction)
   const advanceToNextDay = useGameStore((s) => s.advanceToNextDay)
-  const undo = useGameStore((s) => s.undo)
+  const undoNightStep = useGameStore((s) => s.undoNightStep)
   const decideAiNightAction = useGameStore((s) => s.decideAiNightAction)
 
   const alivePlayers = game.players.filter((p) => p.alive)
@@ -234,7 +234,7 @@ export function NightScreen({ onNextDay }: { onNextDay?: () => void }) {
       <section className="card">
         <div className="row" style={{ justifyContent: 'space-between' }}>
           <h2 style={{ margin: 0 }}>{game.day}日目 夜の行動</h2>
-          <button disabled={game.history.length === 0} onClick={() => undo()}>
+          <button disabled={!wolfDone} onClick={() => undoNightStep()}>
             入力ミスを1つ戻す
           </button>
         </div>
@@ -242,6 +242,7 @@ export function NightScreen({ onNextDay }: { onNextDay?: () => void }) {
           処理順は固定です：{roleName('wolf')} → {roleName('seer')} → {roleName('medium')} → {roleName('bodyguard')}。
           前の役職の処理が終わるまで、次の役職は入力できません（狩人の護衛成否は人狼の襲撃先が決まって初めて判定できるため）。
           予言・霊媒の判定結果、護衛・襲撃の成否はGMが選ばず、真の役職・襲撃先からシステムが自動判定します。霊媒は対象が自動で決まるため入力自体が不要です。
+          「入力ミスを1つ戻す」は、自動で記録された霊媒・スキップを飛ばして、GMが入力した1つ前の手順（{roleName('bodyguard')}→{roleName('seer')}→{roleName('wolf')}の襲撃）まで戻します。
         </p>
 
         <div className="row night-step">
